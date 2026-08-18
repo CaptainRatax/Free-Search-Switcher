@@ -1,0 +1,37 @@
+{
+  "name": "free-search-switcher",
+  "version": "0.1.0",
+  "description": "A cross-browser extension for switching between preferred and custom search engines while preserving the current search query.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt -b chrome --mv3",
+    "dev:firefox": "wxt -b firefox --mv3",
+    "dev:firefox-android": "wxt build -b firefox --mv3 && web-ext run --source-dir .output/firefox-mv3 --target firefox-android --firefox-apk org.mozilla.firefox --no-reload",
+    "build": "wxt build -b chrome --mv3",
+    "build:firefox": "wxt build -b firefox --mv3",
+    "zip": "wxt zip -b chrome --mv3",
+    "zip:firefox": "wxt zip -b firefox --mv3",
+    "lint": "eslint .",
+    "lint:firefox": "web-ext lint --source-dir .output/firefox-mv3 --warnings-as-errors --no-input",
+    "test": "vitest run --pool=threads --maxWorkers=1",
+    "test:integration": "node scripts/integration-smoke.js",
+    "test:mobile": "node scripts/mobile-integration-smoke.js",
+    "test:firefox": "node scripts/firefox-smoke.js",
+    "test:firefox:mobile": "node scripts/firefox-mobile-smoke.js",
+    "postinstall": "wxt prepare"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.8.1",
+    "globals": "17.11.0",
+    "playwright-core": "1.62.1",
+    "vite": "8.2.1",
+    "vitest": "4.1.10",
+    "web-ext": "10.6.0",
+    "wxt": "0.21.4"
+  }
+}
