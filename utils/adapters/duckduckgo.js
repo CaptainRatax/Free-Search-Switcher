@@ -20,4 +20,12 @@ export const duckduckgoAdapter = createAdapter({
   ],
   navigationBehavior: 'client-side results navigation with full-page fallbacks',
   notes: 'The q URL parameter is stable across the homepage and results layouts.',
+  detectMode(url) {
+    if (url.searchParams.get('iaxm') === 'maps') {
+      return 'maps';
+    }
+
+    const ia = url.searchParams.get('ia');
+    return ia === 'images' || ia === 'videos' || ia === 'news' ? ia : 'web';
+  },
 });

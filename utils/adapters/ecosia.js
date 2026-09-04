@@ -16,7 +16,23 @@ export const ecosiaAdapter = createAdapter({
     'input[type="search"]',
   ],
   navigationBehavior: 'full-page with client-rendered updates possible',
-  notes: 'The URL q parameter is the submitted-query source; input text is never read.',
+  notes: 'The URL q parameter is the submitted-query source; input text is never read.'
+    + ' Images/Videos/News use the same q parameter under a dedicated path'
+    + ' (/images, /videos, /news); a bare path with no query 404s, so those modes'
+    + ' have no stable homepage of their own.',
+  detectMode(url) {
+    const path = url.pathname;
+    if (path.startsWith('/images')) {
+      return 'images';
+    }
+    if (path.startsWith('/videos')) {
+      return 'videos';
+    }
+    if (path.startsWith('/news')) {
+      return 'news';
+    }
+    return 'web';
+  },
   findMobileInlineSlot(document) {
     const locationUrl = new URL(document.location.href);
     if (!locationUrl.searchParams.has('q')) {

@@ -17,6 +17,19 @@ export const BUILT_IN_ENGINES = Object.freeze([
     queryParameters: ['q'],
     iconPath: '/engine-icons/ecosia.png',
     kind: 'built-in',
+    modes: {
+      images: { searchUrlTemplate: 'https://www.ecosia.org/images?q={query}' },
+      videos: { searchUrlTemplate: 'https://www.ecosia.org/videos?q={query}' },
+      news: { searchUrlTemplate: 'https://www.ecosia.org/news?q={query}' },
+      // No `maps`: Ecosia's "Maps" tab is an external link to Google Maps
+      // (google.com/maps/search/?api=1&query=...), a different domain entirely, not
+      // a same-origin Ecosia destination. No `shopping`: Ecosia shows only an inline
+      // product carousel inside Images results, not a separate navigable tab. Neither
+      // of the pages above has a stable homepage without a query (verified: a bare
+      // /images, /videos, or /news request returns Ecosia's own 404 page), so no
+      // `homeUrl` is set for any of these modes; the plain Ecosia homepage is used
+      // instead, exactly as the general fallback already does.
+    },
   },
   {
     id: 'startpage',
@@ -26,6 +39,16 @@ export const BUILT_IN_ENGINES = Object.freeze([
     queryParameters: ['query'],
     iconPath: '/engine-icons/startpage.png',
     kind: 'built-in',
+    modes: {
+      images: { searchUrlTemplate: 'https://www.startpage.com/sp/search?query={query}&cat=images' },
+      // Startpage's category parameter is inconsistently named: plural "images" and
+      // invariant "news", but singular "video" (not "videos" — confirmed live: the
+      // plural form silently falls back to the "All" web tab with no error).
+      videos: { searchUrlTemplate: 'https://www.startpage.com/sp/search?query={query}&cat=video' },
+      news: { searchUrlTemplate: 'https://www.startpage.com/sp/search?query={query}&cat=news' },
+      // No `maps`: a live `cat=maps` request returned Startpage's own error page
+      // (`/en/errors/?t=device`), and no `shopping` tab exists in Startpage's UI.
+    },
   },
   {
     id: 'duckduckgo',
@@ -35,6 +58,13 @@ export const BUILT_IN_ENGINES = Object.freeze([
     queryParameters: ['q'],
     iconPath: '/engine-icons/duckduckgo.png',
     kind: 'built-in',
+    modes: {
+      images: { searchUrlTemplate: 'https://duckduckgo.com/?q={query}&ia=images&iax=images' },
+      videos: { searchUrlTemplate: 'https://duckduckgo.com/?q={query}&ia=videos&iax=videos' },
+      news: { searchUrlTemplate: 'https://duckduckgo.com/?q={query}&ia=news&iar=news' },
+      maps: { searchUrlTemplate: 'https://duckduckgo.com/?q={query}&iaxm=maps' },
+      // No `shopping`: DuckDuckGo has no shopping vertical tab.
+    },
   },
   {
     id: 'qwant',
@@ -44,6 +74,12 @@ export const BUILT_IN_ENGINES = Object.freeze([
     queryParameters: ['q'],
     iconPath: '/engine-icons/qwant.png',
     kind: 'built-in',
+    modes: {
+      images: { searchUrlTemplate: 'https://www.qwant.com/?q={query}&t=images' },
+      videos: { searchUrlTemplate: 'https://www.qwant.com/?q={query}&t=videos' },
+      news: { searchUrlTemplate: 'https://www.qwant.com/?q={query}&t=news' },
+      // No `maps` or `shopping`: neither tab exists in Qwant's search UI.
+    },
   },
   {
     id: 'bing',
@@ -53,6 +89,13 @@ export const BUILT_IN_ENGINES = Object.freeze([
     queryParameters: ['q'],
     iconPath: '/engine-icons/bing.png',
     kind: 'built-in',
+    modes: {
+      images: { searchUrlTemplate: 'https://www.bing.com/images/search?q={query}', homeUrl: 'https://www.bing.com/images' },
+      videos: { searchUrlTemplate: 'https://www.bing.com/videos/search?q={query}', homeUrl: 'https://www.bing.com/videos' },
+      news: { searchUrlTemplate: 'https://www.bing.com/news/search?q={query}', homeUrl: 'https://www.bing.com/news' },
+      maps: { searchUrlTemplate: 'https://www.bing.com/maps?q={query}', homeUrl: 'https://www.bing.com/maps' },
+      shopping: { searchUrlTemplate: 'https://www.bing.com/shop/topics?q={query}' },
+    },
   },
   {
     id: 'brave',
@@ -62,6 +105,13 @@ export const BUILT_IN_ENGINES = Object.freeze([
     queryParameters: ['q'],
     iconPath: '/engine-icons/brave.png',
     kind: 'built-in',
+    modes: {
+      images: { searchUrlTemplate: 'https://search.brave.com/images?q={query}' },
+      videos: { searchUrlTemplate: 'https://search.brave.com/videos?q={query}' },
+      news: { searchUrlTemplate: 'https://search.brave.com/news?q={query}' },
+      maps: { searchUrlTemplate: 'https://search.brave.com/maps/search?q={query}', homeUrl: 'https://search.brave.com/maps/search' },
+      // No `shopping`: Brave Search has no shopping vertical tab.
+    },
   },
   {
     id: 'google',
@@ -71,8 +121,26 @@ export const BUILT_IN_ENGINES = Object.freeze([
     queryParameters: ['q'],
     iconPath: '/engine-icons/google.png',
     kind: 'built-in',
+    modes: {
+      images: { searchUrlTemplate: 'https://www.google.com/search?q={query}&udm=2', homeUrl: 'https://www.google.com/imghp' },
+      videos: { searchUrlTemplate: 'https://www.google.com/search?q={query}&udm=7' },
+      news: { searchUrlTemplate: 'https://www.google.com/search?q={query}&tbm=nws' },
+      maps: { searchUrlTemplate: 'https://www.google.com/maps/search/{query}', homeUrl: 'https://www.google.com/maps' },
+      shopping: { searchUrlTemplate: 'https://www.google.com/search?q={query}&udm=3' },
+    },
   },
-].map((engine) => Object.freeze(engine)));
+].map(freezeEngine));
+
+function freezeEngine(engine) {
+  if (!engine.modes) {
+    return Object.freeze(engine);
+  }
+
+  const modes = Object.fromEntries(
+    Object.entries(engine.modes).map(([mode, capability]) => [mode, Object.freeze(capability)]),
+  );
+  return Object.freeze({ ...engine, modes: Object.freeze(modes) });
+}
 
 const BUILT_IN_BY_ID = new Map(BUILT_IN_ENGINES.map((engine) => [engine.id, engine]));
 

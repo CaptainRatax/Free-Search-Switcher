@@ -1,4 +1,5 @@
 import { extractSubmittedQuery } from '../navigation.js';
+import { DEFAULT_SEARCH_MODE, isKnownMode } from '../modes.js';
 
 function isUsable(element) {
   if (!element?.isConnected) {
@@ -85,6 +86,7 @@ export function createAdapter({
   navigationBehavior,
   notes,
   extractQuery: customExtractQuery,
+  detectMode: customDetectMode,
   findMobileControlPosition: customFindMobileControlPosition,
   findMobileInlineSlot: customFindMobileInlineSlot,
   findMobileLayoutPoint: customFindMobileLayoutPoint,
@@ -103,6 +105,10 @@ export function createAdapter({
       return customExtractQuery
         ? customExtractQuery(url, document)
         : extractSubmittedQuery(url, queryParameters);
+    },
+    detectMode(url, document) {
+      const detected = customDetectMode?.(url, document);
+      return isKnownMode(detected) ? detected : DEFAULT_SEARCH_MODE;
     },
     findMountPoint(document) {
       if (customIsBlockedPage?.(document)) {

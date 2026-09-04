@@ -44,4 +44,17 @@ export const startpageAdapter = createAdapter({
     );
     return submittedInput?.value?.trim() ? submittedInput.value : null;
   },
+  // The `cat` parameter is only present when Startpage results were reached through a
+  // directly-constructed URL (as this extension does). Startpage's own Images/Videos/News
+  // tabs switch verticals client-side without updating the URL, so a mode change made by
+  // clicking those tabs directly cannot be detected here and is treated as web. Startpage
+  // names its video category singular ("video"), unlike images/news; it is normalized to
+  // the shared "videos" identifier here.
+  detectMode(url) {
+    const category = url.searchParams.get('cat');
+    if (category === 'video') {
+      return 'videos';
+    }
+    return category === 'images' || category === 'news' ? category : 'web';
+  },
 });

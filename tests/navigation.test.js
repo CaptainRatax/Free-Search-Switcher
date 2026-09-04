@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bingAdapter } from '../utils/adapters/bing.js';
 import { startpageAdapter } from '../utils/adapters/startpage.js';
 import { BUILT_IN_ENGINES } from '../utils/engines.js';
 import {
@@ -45,6 +46,7 @@ describe('navigation URL generation', () => {
   it('reads the current SPA URL synchronously when switching', () => {
     const adapter = {
       extractQuery: (url) => extractSubmittedQuery(url, ['q']),
+      detectMode: () => 'web',
     };
 
     expect(buildCurrentNavigationUrl(
@@ -81,5 +83,64 @@ describe('navigation URL generation', () => {
     expect(buildNavigationUrl(custom, 'café & tea')).toBe(
       `https://example.com/find/${encodeURIComponent('café & tea')}`,
     );
+  });
+});
+
+describe('mode preservation through buildCurrentNavigationUrl', () => {
+  const bing = BUILT_IN_ENGINES.find((engine) => engine.id === 'bing');
+  const startpage = BUILT_IN_ENGINES.find((engine) => engine.id === 'startpage');
+
+  it('preserves images mode end-to-end when the destination supports it (Bing -> Startpage)', () => {
+    const currentUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(complexQuery)}`;
+    expect(buildCurrentNavigationUrl(startpage, bingAdapter, currentUrl, {})).toBe(
+      `https://www.startpage.com/sp/search?query=${encodeURIComponent(complexQuery)}&cat=images`,
+    );
+  });
+
+  it('falls back to a plain web search when the destination has no equivalent mode (Bing images -> Qwant)', () => {
+    const qwant = BUILT_IN_ENGINES.find((engine) => engine.id === 'qwant');
+    const currentUrl = `https://www.bing.com/shop/topics?q=${encodeURIComponent(complexQuery)}`;
+    expect(buildCurrentNavigationUrl(qwant, bingAdapter, currentUrl, {})).toBe(
+      `https://www.qwant.com/?q=${encodeURIComponent(complexQuery)}`,
+    );
+  });
+
+  it('reads mode changes synchronously from the current URL, mirroring query extraction (no stale mode)', () => {
+    const adapter = {
+      extractQuery: (url) => extractSubmittedQuery(url, ['q']),
+      detectMode: (url) => (url.searchParams.get('udm') === '2' ? 'images' : 'web'),
+    };
+
+    expect(buildCurrentNavigationUrl(
+      startpage,
+      adapter,
+      `https://www.google.com/search?q=${encodeURIComponent(complexQuery)}&udm=2`,
+      {},
+    )).toBe(`https://www.startpage.com/sp/search?query=${encodeURIComponent(complexQuery)}&cat=images`);
+    expect(buildCurrentNavigationUrl(
+      startpage,
+      adapter,
+      `https://www.google.com/search?q=${encodeURIComponent(complexQuery)}`,
+      {},
+    )).toBe(`https://www.startpage.com/sp/search?query=${encodeURIComponent(complexQuery)}`);
+  });
+
+  it('opens the destination mode homepage (not an empty search) when there is no submitted query', () => {
+    const currentUrl = 'https://www.bing.com/images';
+    expect(buildCurrentNavigationUrl(startpage, bingAdapter, currentUrl, {})).toBe(
+      'https://www.startpage.com/',
+    );
+    expect(buildCurrentNavigationUrl(bing, bingAdapter, currentUrl, {})).toBe(
+      'https://www.bing.com/images',
+    );
+  });
+
+  it('never lets a thrown extractQuery/detectMode error leak a stale query or mode', () => {
+    const throwingAdapter = {
+      extractQuery: () => { throw new Error('transient page state'); },
+      detectMode: () => { throw new Error('transient page state'); },
+    };
+    expect(buildCurrentNavigationUrl(bing, throwingAdapter, 'https://www.ecosia.org/images?q=x', {}))
+      .toBe('https://www.bing.com/');
   });
 });
