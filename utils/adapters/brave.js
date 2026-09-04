@@ -18,4 +18,20 @@ export const braveAdapter = createAdapter({
   ],
   navigationBehavior: 'client-side navigation with full-page fallbacks',
   notes: 'The q URL parameter remains authoritative when the input is replaced dynamically.',
+  detectMode(url) {
+    const path = url.pathname;
+    if (path.startsWith('/images')) {
+      return 'images';
+    }
+    if (path.startsWith('/videos')) {
+      return 'videos';
+    }
+    if (path.startsWith('/news')) {
+      return 'news';
+    }
+    if (path.startsWith('/maps')) {
+      return 'maps';
+    }
+    return 'web';
+  },
 });

@@ -23,7 +23,7 @@ export default defineConfig({
   manifestVersion: 3,
   manifest: ({ browser }) => ({
     name: 'Free Search Switcher',
-    version: '0.1.0',
+    version: '1.0.0',
     description: 'A cross-browser extension for switching between preferred and custom search engines while preserving the current search query.',
     permissions: ['storage'],
     icons,

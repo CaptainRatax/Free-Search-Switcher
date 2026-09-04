@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { findSearchAnchor } from '../utils/adapters/shared.js';
+import { bingAdapter } from '../utils/adapters/bing.js';
+import { braveAdapter } from '../utils/adapters/brave.js';
+import { duckduckgoAdapter } from '../utils/adapters/duckduckgo.js';
 import { ecosiaAdapter } from '../utils/adapters/ecosia.js';
 import { googleAdapter } from '../utils/adapters/google.js';
 import { qwantAdapter } from '../utils/adapters/qwant.js';
@@ -199,5 +202,81 @@ describe('mobile layout targets', () => {
     input.nextElementSibling = spacer;
 
     expect(googleAdapter.findMobileInlineSlot(document, null).before).toBe(before);
+  });
+});
+
+describe('source-mode detection', () => {
+  it('detects Startpage modes from the cat parameter and defaults to web', () => {
+    expect(startpageAdapter.detectMode(new URL('https://www.startpage.com/sp/search?query=x'))).toBe('web');
+    expect(startpageAdapter.detectMode(new URL('https://www.startpage.com/sp/search?query=x&cat=images'))).toBe('images');
+    // Startpage's video category is singular ("video"); the plural form Startpage
+    // itself does not recognize and silently falls back to "All" (web).
+    expect(startpageAdapter.detectMode(new URL('https://www.startpage.com/sp/search?query=x&cat=video'))).toBe('videos');
+    expect(startpageAdapter.detectMode(new URL('https://www.startpage.com/sp/search?query=x&cat=videos'))).toBe('web');
+    expect(startpageAdapter.detectMode(new URL('https://www.startpage.com/sp/search?query=x&cat=news'))).toBe('news');
+    expect(startpageAdapter.detectMode(new URL('https://www.startpage.com/sp/search?query=x&cat=maps'))).toBe('web');
+  });
+
+  it('detects DuckDuckGo modes, preferring the maps marker over ia', () => {
+    expect(duckduckgoAdapter.detectMode(new URL('https://duckduckgo.com/?q=x&ia=web'))).toBe('web');
+    expect(duckduckgoAdapter.detectMode(new URL('https://duckduckgo.com/?q=x&ia=images&iax=images'))).toBe('images');
+    expect(duckduckgoAdapter.detectMode(new URL('https://duckduckgo.com/?q=x&ia=videos&iax=videos'))).toBe('videos');
+    expect(duckduckgoAdapter.detectMode(new URL('https://duckduckgo.com/?q=x&ia=news&iar=news'))).toBe('news');
+    expect(duckduckgoAdapter.detectMode(new URL('https://duckduckgo.com/?q=x&iaxm=maps'))).toBe('maps');
+    expect(duckduckgoAdapter.detectMode(new URL('https://duckduckgo.com/?q=x&ia=bogus'))).toBe('web');
+  });
+
+  it('detects Qwant modes from the t parameter and defaults to web', () => {
+    expect(qwantAdapter.detectMode(new URL('https://www.qwant.com/?q=x&t=web'))).toBe('web');
+    expect(qwantAdapter.detectMode(new URL('https://www.qwant.com/?q=x&t=images'))).toBe('images');
+    expect(qwantAdapter.detectMode(new URL('https://www.qwant.com/?q=x&t=videos'))).toBe('videos');
+    expect(qwantAdapter.detectMode(new URL('https://www.qwant.com/?q=x&t=news'))).toBe('news');
+    expect(qwantAdapter.detectMode(new URL('https://www.qwant.com/?q=x'))).toBe('web');
+  });
+
+  it('detects Bing modes from the path, including the shopping vertical', () => {
+    expect(bingAdapter.detectMode(new URL('https://www.bing.com/search?q=x'))).toBe('web');
+    expect(bingAdapter.detectMode(new URL('https://www.bing.com/images/search?q=x'))).toBe('images');
+    expect(bingAdapter.detectMode(new URL('https://www.bing.com/videos/search?q=x'))).toBe('videos');
+    expect(bingAdapter.detectMode(new URL('https://www.bing.com/news/search?q=x'))).toBe('news');
+    expect(bingAdapter.detectMode(new URL('https://www.bing.com/maps?q=x'))).toBe('maps');
+    expect(bingAdapter.detectMode(new URL('https://www.bing.com/shop/topics?q=x'))).toBe('shopping');
+  });
+
+  it('detects Brave modes from the path', () => {
+    expect(braveAdapter.detectMode(new URL('https://search.brave.com/search?q=x'))).toBe('web');
+    expect(braveAdapter.detectMode(new URL('https://search.brave.com/images?q=x'))).toBe('images');
+    expect(braveAdapter.detectMode(new URL('https://search.brave.com/videos?q=x'))).toBe('videos');
+    expect(braveAdapter.detectMode(new URL('https://search.brave.com/news?q=x'))).toBe('news');
+    expect(braveAdapter.detectMode(new URL('https://search.brave.com/maps/search?q=x'))).toBe('maps');
+  });
+
+  it('detects Google modes from udm/tbm parameters and dedicated paths', () => {
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/search?q=x'))).toBe('web');
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/search?q=x&udm=2'))).toBe('images');
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/search?q=x&udm=7'))).toBe('videos');
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/search?q=x&udm=3'))).toBe('shopping');
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/search?q=x&tbm=nws'))).toBe('news');
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/imghp'))).toBe('images');
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/maps/search/x/@1,2,3z'))).toBe('maps');
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/search?q=x&udm=999'))).toBe('web');
+  });
+
+  it('detects Google modes from the legacy tbm=isch/vid parameters Google serves to some user agents', () => {
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/search?q=x&tbm=isch'))).toBe('images');
+    expect(googleAdapter.detectMode(new URL('https://www.google.com/search?q=x&tbm=vid'))).toBe('videos');
+  });
+
+  it('extracts a Google Maps query embedded in the path instead of a q parameter', () => {
+    const url = new URL('https://www.google.com/maps/search/caf%C3%A9+pesquisa/@40.68,-7.92,12z');
+    expect(googleAdapter.extractQuery(url)).toBe('café pesquisa');
+    expect(googleAdapter.extractQuery(new URL('https://www.google.com/maps'))).toBeNull();
+  });
+
+  it('detects Ecosia modes from the path and defaults to web', () => {
+    expect(ecosiaAdapter.detectMode(new URL('https://www.ecosia.org/search?q=x'))).toBe('web');
+    expect(ecosiaAdapter.detectMode(new URL('https://www.ecosia.org/images?q=x'))).toBe('images');
+    expect(ecosiaAdapter.detectMode(new URL('https://www.ecosia.org/videos?q=x'))).toBe('videos');
+    expect(ecosiaAdapter.detectMode(new URL('https://www.ecosia.org/news?q=x'))).toBe('news');
   });
 });

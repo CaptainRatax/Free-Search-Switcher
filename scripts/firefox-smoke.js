@@ -9,7 +9,7 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const firefoxPath = process.env.FSS_FIREFOX_PATH;
 const geckodriverPath = process.env.FSS_GECKODRIVER_PATH;
 const extensionArchive = process.env.FSS_FIREFOX_EXTENSION
-  || path.join(repositoryRoot, '.output', 'free-search-switcher-0.1.0-firefox.zip');
+  || path.join(repositoryRoot, '.output', 'free-search-switcher-1.0.0-firefox.zip');
 const complexQuery = 'privacidade café & "pesquisa livre" 世界';
 const storageKey = 'freeSearchSwitcherSettings';
 const emulateMobile = process.env.FSS_FIREFOX_MOBILE === '1';
@@ -233,6 +233,31 @@ try {
   }, 'Firefox quick switch did not navigate to the preferred engine', 30_000);
   assert.equal(new URL(transferredUrl).searchParams.get('q'), complexQuery);
   log(`Firefox transferred the complex submitted query to ${preferredEngineId}`);
+
+  log('Checking search-mode preservation on the packaged Firefox build');
+  const bingImagesResults = `https://www.bing.com/images/search?q=${encodeURIComponent(complexQuery)}`;
+  await webdriver('POST', `${route}/url`, { url: bingImagesResults });
+  await waitForCondition(async () => webdriver('POST', `${route}/execute/sync`, {
+    script: `
+      const host = document.querySelector('[data-free-search-switcher-root]');
+      return Boolean(host && getComputedStyle(host).display !== 'none');
+    `,
+    args: [],
+  }), 'Firefox controls did not appear on Bing Images results');
+  await clickQuickControl();
+  const modeTransferredUrl = await waitForCondition(async () => {
+    const url = await webdriver('GET', `${route}/url`);
+    return new URL(url).hostname === preferredHostname ? url : null;
+  }, 'Firefox mode-preserving quick switch did not navigate to the preferred engine', 30_000);
+  const modeUrl = new URL(modeTransferredUrl);
+  assert.equal(modeUrl.searchParams.get('q'), complexQuery);
+  if (emulateMobile) {
+    // Ecosia supports Images at /images?q=.
+    assert.equal(modeUrl.pathname, '/images');
+  } else {
+    assert.equal(modeUrl.searchParams.get('udm'), '2');
+  }
+  log(`Firefox preserved the images search mode when switching to ${preferredEngineId}`);
 
   await webdriver('POST', `${route}/url`, { url: 'https://www.bing.com/' });
   await waitForCondition(async () => webdriver('POST', `${route}/execute/sync`, {

@@ -18,6 +18,10 @@ export const qwantAdapter = createAdapter({
   ],
   navigationBehavior: 'client-side navigation with consent overlay variants',
   notes: 'The q URL parameter is used so unsubmitted input contents are ignored.',
+  detectMode(url) {
+    const type = url.searchParams.get('t');
+    return type === 'images' || type === 'videos' || type === 'news' ? type : 'web';
+  },
   isBlockedPage(document) {
     if (document?.querySelector?.(
       'div[id^="ddChallengeContainer"], style[id^="ddStyleCaptchaBody"]',

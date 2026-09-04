@@ -1,8 +1,8 @@
 # Privacy Policy for Free Search Switcher
 
-**Effective date:** August 18, 2026  
-**Policy version:** 1.0  
-**Extension version:** 0.1.0
+**Effective date:** September 4, 2026  
+**Policy version:** 1.1  
+**Extension version:** 1.0.0
 
 ## Overview
 
@@ -19,7 +19,10 @@ On the seven supported search-engine origins, Free Search Switcher processes the
 - Identify the current supported search engine.
 - Determine whether the current page represents a submitted search.
 - Extract the textual submitted query, if present, so it can be transferred only if the user later chooses another engine.
+- Detect the current search mode (such as Web, Images, Videos, News, Maps, or Shopping) from the same page URL, so it can be preserved only if the user later chooses another engine that supports an equivalent mode.
 - Locate the search bar and display the extension's switching controls beside it.
+
+The detected search mode is handled exactly like the submitted query described above: it is read transiently from the current page URL, is not written to extension storage or logged, and is only ever placed into the destination URL when the user explicitly switches engines. If the destination engine has no equivalent mode, the mode is discarded and a normal web search or homepage is used instead.
 
 For Startpage results produced through a POST submission, the extension may read non-editable hidden form metadata containing the submitted query because the query may not be present in the page URL.
 
