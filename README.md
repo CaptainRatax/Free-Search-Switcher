@@ -2,6 +2,8 @@
 
 Free Search Switcher is a cross-browser extension for switching between preferred and custom search engines while preserving the current submitted search query. It uses one Vanilla JavaScript WXT codebase and produces Manifest V3 builds for Chromium browsers, Firefox desktop, and Firefox for Android.
 
+Read the [official documentation](https://freesearchswitcher-docs.captainratax.com/) for installation, usage, settings, and privacy information.
+
 ## Screenshots
 
 ### Settings and onboarding

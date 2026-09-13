@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Official Free Search Switcher documentation. Move a submitted search between engines in Chromium browsers and Firefox, with local preferences and custom destinations.">
+    <meta name="theme-color" content="#101b1f">
+    <title>Free Search Switcher · Documentation</title>
+    <link rel="icon" href="assets/images/favicon.png" type="image/png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/themes/dark.css">
+    <link rel="stylesheet" href="assets/css/theme.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to documentation</a>
+    <div id="app">Loading Free Search Switcher documentation…</div>
+    <noscript>This documentation uses Docsify and requires JavaScript. You can also <a href="https://github.com/CaptainRatax/Free-Search-Switcher/tree/main/docs">read the Markdown on GitHub</a>.</noscript>
+    <script>
+      document.querySelector('.skip-link').addEventListener('click', function (event) {
+        event.preventDefault();
+        const main = document.querySelector('.markdown-section');
+        if (main) {
+          main.scrollIntoView({ block: 'start' });
+          main.focus({ preventScroll: true });
+        }
+      });
+      const documentationPages = [
+        ['/', 'Home'],
+        ['/getting-started/introduction', 'Introduction'],
+        ['/getting-started/installation', 'Installation'],
+        ['/getting-started/browser-support', 'Browser support'],
+        ['/usage/switching-search-engines', 'Switching search engines'],
+        ['/configuration/settings', 'Settings'],
+        ['/configuration/search-engines', 'Search engine reference'],
+        ['/browsers/chromium', 'Chromium browsers'],
+        ['/browsers/firefox', 'Firefox'],
+        ['/privacy/permissions', 'Permissions'],
+        ['/privacy/privacy', 'Privacy explained'],
+        ['/privacy/privacy-policy', 'Privacy Policy'],
+        ['/troubleshooting', 'Troubleshooting'],
+        ['/development/building', 'Building and testing'],
+        ['/development/architecture', 'Architecture'],
+        ['/development/documentation', 'Contributing to documentation']
+      ];
+      window.$docsify = {
+        name: '<img src="assets/images/logo.png" alt="" width="48" height="48"><span>Free Search<br>Switcher<small>Documentation</small></span>',
+        nameLink: '#/',
+        repo: 'CaptainRatax/Free-Search-Switcher',
+        loadSidebar: true,
+        coverpage: true,
+        onlyCover: false,
+        auto2top: true,
+        routerMode: 'hash',
+        relativePath: false,
+        subMaxLevel: 2,
+        maxLevel: 3,
+        notFoundPage: '_404.md',
+        alias: { '/.*/_sidebar.md': '/_sidebar.md' },
+        search: {
+          paths: documentationPages.map(function (page) { return page[0]; }),
+          placeholder: 'Search documentation',
+          noData: 'No results. Try an engine name or setting.',
+          depth: 3,
+          namespace: 'free-search-switcher-docs-public',
+          maxAge: 86400000
+        },
+        copyCode: { buttonText: 'Copy', errorText: 'Try again', successText: 'Copied' },
+        plugins: [function (hook, vm) {
+          hook.afterEach(function (html) {
+            const route = vm.route.path.replace(/\.md$/, '');
+            const index = documentationPages.findIndex(function (page) { return page[0] === route; });
+            let navigation = '';
+            if (index >= 0) {
+              const previous = documentationPages[index - 1];
+              const next = documentationPages[index + 1];
+              navigation = '<nav class="page-navigation" aria-label="Documentation pages">'
+                + (previous ? '<a href="#' + previous[0] + '"><small>Previous</small>' + previous[1] + '</a>' : '<span></span>')
+                + (next ? '<a href="#' + next[0] + '"><small>Next</small>' + next[1] + '</a>' : '<span></span>')
+                + '</nav>';
+            }
+            return html + navigation + '<footer class="documentation-footer">Free Search Switcher · <a href="#/privacy/privacy-policy">Privacy Policy</a> · <a href="https://github.com/CaptainRatax/Free-Search-Switcher" target="_blank" rel="noopener">GitHub</a><br>Documentation for extension version 1.0.0.</footer>';
+          });
+          hook.doneEach(function () {
+            const main = document.querySelector('.markdown-section');
+            if (main) { main.setAttribute('tabindex', '-1'); }
+            const title = document.querySelector('.markdown-section h1');
+            document.title = (title ? title.textContent.trim() + ' · ' : '') + 'Free Search Switcher';
+          });
+        }]
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/docsify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/plugins/search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4.13.1/lib/plugins/zoom-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2.1.1/dist/docsify-copy-code.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-bash.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-json.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-powershell.min.js"></script>
+  </body>
+</html>
