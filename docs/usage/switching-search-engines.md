@@ -79,8 +79,8 @@ See [browser support](/getting-started/browser-support.md) for Firefox for Andro
 
 ## Open settings
 
-Click Free Search Switcher's icon in the browser's extension toolbar or extension menu. It opens the settings page in a tab. The toolbar action has no popup and does not perform the search switch itself.
+Click Free Search Switcher's icon in the desktop toolbar or extensions menu to open its popup. The global switch and preferred selectors save immediately; **Open Settings** opens the full page with Save/Cancel for all configuration. On Firefox Android, the action provides simple access to full Settings. Search switching itself stays in the on-page controls.
 
-Settings also open automatically on the first installation. You can leave both preferences empty and start using the menu immediately. [Configure preferences and custom engines](/configuration/settings.md).
+Settings also opens automatically on the first installation. Global/site switches default on and apply when a page loads; reload after changing them. Site switches do not remove any destinations. You can leave both preferences empty and start using the menu immediately. [Configure preferences and custom engines](/configuration/settings.md).
 
 If the control is missing or a search behaves unexpectedly, follow the [troubleshooting guide](/troubleshooting.md).

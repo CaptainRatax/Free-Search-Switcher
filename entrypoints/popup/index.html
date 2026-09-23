@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>Free Search Switcher</title>
+    <link rel="stylesheet" href="./style.css">
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <header><img src="/icons/icon-48.png" alt=""><h1>Free Search Switcher</h1></header>
+    <main>
+      <p id="android-help" hidden>Open Settings to configure Free Search Switcher on Android.</p>
+      <fieldset id="desktop-controls" disabled hidden>
+        <legend class="visually-hidden">Quick settings</legend>
+        <label class="toggle" for="enabled"><span>Enable Free Search Switcher</span><input id="enabled" type="checkbox" role="switch"></label>
+        <label for="first-preference">First preferred engine</label>
+        <select id="first-preference"></select>
+        <label for="second-preference">Second preferred engine <span>(optional)</span></label>
+        <select id="second-preference" aria-describedby="preference-help"></select>
+        <p class="help" id="preference-help">Choose a first engine to enable the second. Changes save immediately.</p>
+      </fieldset>
+      <div id="reload-warning" role="status" aria-live="polite" hidden>
+        <p>Reload this page to apply where Free Search Switcher appears.</p>
+        <button id="reload-page" type="button">Reload page</button>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+      <p id="error" role="alert" hidden></p>
+      <button id="open-settings" class="settings" type="button">Open Settings</button>
+    </main>
+  </body>
+</html>

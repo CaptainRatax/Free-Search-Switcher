@@ -2,6 +2,8 @@ import { SearchSwitcherUi } from '../ui/search-switcher-ui.js';
 import { detectEngineAdapter } from '../utils/adapters/index.js';
 import { listenForSettingsChanges, loadSettings } from '../utils/storage.js';
 import { defineContentScript } from 'wxt/utils/define-content-script';
+import { browser } from 'wxt/browser';
+import { startContentSession } from '../utils/content-session.js';
 
 const SUPPORTED_MATCHES = [
   'https://www.ecosia.org/*',
@@ -22,22 +24,13 @@ export default defineContentScript({
       return;
     }
 
-    const settings = await loadSettings();
-    const switcherUi = new SearchSwitcherUi({
-      document,
-      window,
+    await startContentSession({
+      context,
+      runtime: browser.runtime,
       adapter,
-      settings,
-    });
-    switcherUi.start();
-
-    const stopListening = listenForSettingsChanges((nextSettings) => {
-      switcherUi.updateSettings(nextSettings);
-    });
-
-    context.onInvalidated(() => {
-      stopListening();
-      switcherUi.stop();
+      loadSettings,
+      listenForSettingsChanges,
+      createUi: (settings) => new SearchSwitcherUi({ document, window, adapter, settings }),
     });
   },
 });

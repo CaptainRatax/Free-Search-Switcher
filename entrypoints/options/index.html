@@ -14,7 +14,7 @@
       <div class="hero__content">
         <img class="hero__icon" src="/icons/icon-96.png" alt="">
         <div>
-          <p class="eyebrow">Welcome</p>
+          <p class="eyebrow">Settings</p>
           <h1>Free Search Switcher</h1>
           <p class="hero__summary">
             Move a submitted search between engines in one click, or jump between homepages before searching.
@@ -24,13 +24,37 @@
     </header>
 
     <main class="page-shell">
+      <section class="panel" aria-labelledby="enabled-heading">
+        <p class="eyebrow">Your search, your choice</p>
+        <h2 id="enabled-heading">Enable Free Search Switcher</h2>
+        <label class="toggle-row toggle-row--prominent">
+          <input id="enabled" type="checkbox" checked aria-describedby="enabled-help">
+          <span>Show Free Search Switcher on supported search engines</span>
+        </label>
+        <p id="enabled-help" class="section-copy">
+          Changes here stay in a draft until you choose Save changes. Reload open search-engine pages after saving global or site changes.
+        </p>
+        <div id="external-warning" class="form-message form-message--warning" role="status" aria-live="polite" hidden>
+          <p>Saved settings changed elsewhere. Your unsaved changes are kept. Reload saved settings to discard your draft, or Save changes to replace the saved configuration.</p>
+          <button id="reload-saved-settings" class="button button--secondary" type="button">Reload saved settings</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="sites-heading">
+        <p class="eyebrow">Page controls</p>
+        <h2 id="sites-heading">Where Free Search Switcher appears</h2>
+        <p id="sites-help" class="section-copy">
+          Choose the search-engine websites that show Free Search Switcher. Every engine remains available as a destination and preferred engine, even when its toggle is off. Custom engines never receive injected controls.
+        </p>
+        <div id="site-settings" class="site-grid" role="group" aria-labelledby="sites-heading" aria-describedby="sites-help"></div>
+      </section>
+
       <section class="panel" aria-labelledby="preferences-heading">
         <div class="section-heading">
           <div>
             <p class="eyebrow">Quick switching</p>
             <h2 id="preferences-heading">Preferred engines</h2>
           </div>
-          <p id="save-status" class="save-status" role="status" aria-live="polite"></p>
         </div>
 
         <p class="section-copy">
@@ -69,7 +93,7 @@
       <section class="panel" aria-labelledby="custom-engines-heading">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Local targets</p>
+            <p class="eyebrow">More destinations</p>
             <h2 id="custom-engines-heading">Custom search engines</h2>
           </div>
           <button id="add-custom-engine" class="button button--primary" type="button">Add custom engine</button>
@@ -87,7 +111,7 @@
               <p class="eyebrow">Custom engine editor</p>
               <h3 id="editor-title">Add custom engine</h3>
             </div>
-            <button id="cancel-custom-engine" class="icon-button" type="button" aria-label="Close custom engine editor" title="Close editor">×</button>
+            <button id="cancel-custom-engine" class="icon-button" type="button" aria-label="Discard current engine edit" title="Discard current engine edit">×</button>
           </div>
 
           <div class="editor-grid">
@@ -110,38 +134,43 @@
               <span id="custom-search-url-error" class="field__error"></span>
             </label>
 
-            <fieldset class="icon-field editor-grid__wide">
-              <legend>Custom icon <span>(optional)</span></legend>
-              <div class="icon-field__content">
-                <div id="custom-icon-preview" class="large-icon" aria-label="Custom icon preview"></div>
-                <div class="icon-field__actions">
-                  <label class="button button--secondary file-button">
-                    Choose image
-                    <input id="custom-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/x-icon,image/vnd.microsoft.icon,.ico">
-                  </label>
-                  <button id="remove-custom-icon" class="button button--quiet" type="button">Remove icon</button>
-                  <span class="field__help">PNG, JPEG, WebP, or ICO; maximum 2 MB. Images are resized locally to 128 × 128.</span>
-                  <span id="custom-icon-error" class="field__error" role="alert"></span>
-                </div>
-              </div>
-            </fieldset>
+            <label class="field editor-grid__wide">
+              <span class="field__label">Icon URL <span class="field__help">(optional)</span></span>
+              <input id="custom-icon-url" name="iconUrl" type="url" inputmode="url" placeholder="https://example.com/icon.png" autocomplete="off" spellcheck="false" aria-describedby="custom-icon-help custom-icon-error">
+              <span id="custom-icon-help" class="field__help">Use an HTTPS image URL, or leave blank for a first-letter icon. Only the URL is stored. Your browser may contact the image host when displaying the icon; Free Search Switcher does not upload or proxy images.</span>
+              <span id="custom-icon-error" class="field__error"></span>
+            </label>
           </div>
 
           <div id="editor-error-summary" class="form-message form-message--error" role="alert" hidden></div>
 
           <div class="button-row button-row--end">
-            <button id="cancel-custom-engine-secondary" class="button button--secondary" type="button">Cancel</button>
-            <button class="button button--primary" type="submit">Save custom engine</button>
+            <button id="cancel-custom-engine-secondary" class="button button--secondary" type="button">Discard engine edit</button>
+            <button class="button button--primary" type="submit">Apply to draft</button>
           </div>
+          <p class="field__help">Applying an engine updates this page's draft. Save changes below keeps all your changes together.</p>
         </form>
       </section>
 
       <section class="panel panel--compact" aria-labelledby="privacy-heading">
         <p class="eyebrow">Private by design</p>
-        <h2 id="privacy-heading">Your choices stay in this browser</h2>
+        <h2 id="privacy-heading">Configuration only, with browser-native sync</h2>
         <p class="section-copy">
-          Preferences, custom engines, and uploaded icons use extension-local storage. A submitted query is sent only to the search engine you explicitly choose. Free Search Switcher has no analytics, accounts, cloud sync, or remote services.
+          Your browser may synchronize settings through its own account where supported and enabled. Firefox and Chromium sync separately; Firefox for Android currently keeps extension settings on the device. Free Search Switcher runs no sync server and its developer receives no settings. Search queries and browsing history are never stored or synchronized. A submitted query is sent only to the search engine you choose. There are no analytics, tracking, or Free Search Switcher accounts.
         </p>
+        <p id="storage-notice" class="form-message form-message--warning" role="status" hidden></p>
+      </section>
+
+      <section class="save-bar" aria-label="Save or discard settings changes">
+        <div class="save-bar__copy">
+          <p id="dirty-status" class="dirty-status" role="status" aria-live="polite">Loading settings…</p>
+          <p id="save-status" class="save-status" role="status" aria-live="polite"></p>
+          <p id="save-error" class="form-message form-message--error" role="alert" hidden></p>
+        </div>
+        <div class="button-row">
+          <button id="cancel-changes" class="button button--secondary" type="button" disabled>Cancel</button>
+          <button id="save-changes" class="button button--primary" type="button" disabled>Save changes</button>
+        </div>
       </section>
     </main>
   </body>

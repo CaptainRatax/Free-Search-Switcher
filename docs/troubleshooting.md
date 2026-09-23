@@ -6,18 +6,19 @@ Most switching issues come from the current website, a missing submitted query, 
 
 Open the browser's extensions menu and look for **Free Search Switcher**. Pin it to the toolbar if your browser offers that option. Verify that the extension is enabled in the browser's extension manager.
 
-Clicking its icon opens settings in a tab. There is no toolbar popup. Search switching happens through the control near the supported website's search bar.
+On desktop, clicking the icon opens the popup; **Open Settings** opens the full configuration tab. On Firefox Android, the action provides simple Settings access. Search switching still happens beside the supported website's search bar.
 
-If it is not installed, use the [installation guide](/getting-started/installation.md) and the official [Chrome Web Store listing](https://chromewebstore.google.com/detail/free-search-switcher/djgkkdjcommgeadcjepcdmaogklepkmp) or [Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/free-search-switcher/).
+If it is not installed, use the [installation guide](/getting-started/installation.md) and the official [Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/free-search-switcher/) or [Chrome Web Store listing](https://chromewebstore.google.com/detail/free-search-switcher/djgkkdjcommgeadcjepcdmaogklepkmp).
 
 ## No control appears near the search bar
 
 1. Check that the page uses one of the [seven exact supported HTTPS hostnames](/configuration/search-engines.md#built-in-providers). Regional Google domains, alternate subdomains, unrelated websites, and custom-only sites are outside the injection list.
-2. Wait for the page to finish loading and scroll until its search bar is visible. The control hides when the bar is outside the visible viewport.
-3. Finish any website consent or verification step through the website's normal UI. Recognized Ecosia consent notices and Qwant verification challenges suppress the controls. Other challenge pages may not expose a usable search bar.
-4. Check the browser's extension controls for website access and ensure Free Search Switcher can run on that supported site. See [permissions](/privacy/permissions.md) for the requested scope.
-5. Reload the page, particularly if it was already open when the extension was installed, enabled, or manually reloaded.
-6. Try the engine's normal homepage or web-results page to distinguish a special layout from a general problem.
+2. In Settings, check the global switch and that engine's switch under **Where Free Search Switcher appears**. Click **Save changes**, then reload the search page. Global/site eligibility is fixed when that page loads.
+3. Wait for the page to finish loading and scroll until its search bar is visible. The control hides when the bar is outside the visible viewport.
+4. Finish any website consent or verification step through the website's normal UI. Recognized Ecosia consent notices and Qwant verification challenges suppress the controls. Other challenge pages may not expose a usable search bar.
+5. Check the browser's extension controls for website access and ensure Free Search Switcher can run on that supported site. See [permissions](/privacy/permissions.md) for the requested scope.
+6. Reload the page, particularly if it was already open when the extension was installed, enabled, or manually reloaded.
+7. Try the engine's normal homepage or web-results page to distinguish a special layout from a general problem.
 
 Bing Maps and Brave Search Maps use interfaces the current adapters do not recognize. DuckDuckGo's separate map interface can also lack the control. The extension can navigate **to** those destinations while its control is unavailable there. Use another supported search page to switch again.
 
@@ -61,7 +62,7 @@ Search operators remain part of the query text, but each provider decides how to
 
 The current built-in engine is intentionally omitted. Preferred destinations are promoted to the top, marked **First** or **Second**, and appear only once.
 
-Built-ins cannot be disabled or deleted. A custom engine appears after it has been successfully saved; opening the editor or typing fields alone does not save it. Check for field errors and click **Save custom engine**.
+Built-ins cannot be removed as destinations. Site switches control injection only, so disabling Google injection does not remove Google from the menu or preferred selectors. Apply a custom-engine editor to the draft, then click the page-level **Save changes** before expecting it on search pages. Check any validation or storage error.
 
 ## The second preferred engine selector is disabled
 
@@ -76,23 +77,39 @@ Check each highlighted field:
 - **Display name:** required, no more than 80 characters after trimming surrounding whitespace.
 - **Home URL:** valid HTTPS URL without a username or password.
 - **Search URL template:** valid HTTPS URL with exactly one literal `{query}` after the hostname. Encoded `%7Bquery%7D`, uppercase `{QUERY}`, missing tokens, and repeated tokens are rejected.
-- **Icon:** optional supported local image. Remove it or choose another file if it cannot be decoded.
+- **Icon URL:** optional syntactically valid HTTPS image URL. Clear it to use a letter icon. URL validation does not fetch the image.
 
 See the [complete custom-engine rules and examples](/configuration/search-engines.md#template-rules). Format validation does not verify that a site accepts the URL or offers a working search service.
 
 ## A custom icon is rejected or shows a letter
 
-Use PNG, JPEG, WebP, or ICO, maximum 2 MB. Renaming an unsupported file does not convert its contents or MIME type. An SVG is not an accepted custom icon.
+Use an optional HTTPS image URL, such as `https://example.com/icon.png`. Image-file uploads are no longer supported. Validation checks syntax without downloading the image. The browser may contact that external host when it displays the icon; the extension provides no proxy.
 
-The first-letter icon is the normal fallback when no icon is saved or an image cannot display. Choose another supported image, wait for its preview, then click **Save custom engine**. **Remove icon** changes only the pending edit until you save.
+A first-letter icon is the normal fallback for a missing or failed image. The engine still works. Change or clear the URL, apply the custom editor, then click **Save changes**. After upgrading from version 1, old uploaded icons use the same fallback while their engines remain intact.
+
+## The popup says the page needs reloading
+
+Global and site eligibility is captured when a supported page loads. A saved change does not create or remove controls in place. Click **Reload page** to apply the saved state.
+
+For a page loaded enabled, switching off shows the warning; switching back on before reloading clears it. The warning describes the page's applied state, not just whether a toggle was touched. It is not shown on unsupported websites. If a page predates extension installation/update, manually reload it so its content script is available.
+
+## My Settings edits disappeared or did not apply
+
+Everything in full Settings stays in a draft until the main **Save changes**: global/site switches, preferences, custom add/edit/delete, and icon URLs. Applying the custom editor alone does not persist the page. Confirm the accessible success message before closing. **Cancel** restores saved configuration, including any draft deletions. Desktop popup controls save immediately.
+
+If another tab, popup, or browser sync changes saved settings, a clean Settings page refreshes. A dirty page keeps your edits and shows an external-change warning. Use its reload/reset action to discard the draft and load the latest saved configuration. Saving your draft instead can replace the newer configuration; there is no automatic merge.
 
 ## Settings look different in another browser or device
 
-Settings use extension-local storage, not browser sync. Different browser profiles, Chromium installations, and Firefox installations have their own preferences and custom engines. Configure each one separately.
+Configuration uses the browser's native sync service where supported and enabled. Check the browser's account and sync settings and allow its normal synchronization interval. Firefox and Chromium are separate ecosystems. Firefox Android does not synchronize extension settings with Desktop Firefox through a Mozilla account. See [browser support](/getting-started/browser-support.md#browser-native-sync).
 
-Preferences save on selection. Custom entries and edits save only with **Save custom engine**. Confirm the success message before closing the settings tab.
+When sync storage itself is unavailable, the extension can keep configuration locally. That fallback does not synchronize. No queries, browsing history, drafts, or reload warnings are ever synchronized.
 
-If you have several settings tabs open, close the extras and reload the remaining settings page before editing. Search-page controls listen for saved changes; the settings page reads its saved configuration when opened. A stale settings tab can overwrite newer changes, including custom engines, when it saves its older configuration.
+## Saving reports a storage limit or storage error
+
+Configuration contains URL strings, not image bytes. The storage layer splits larger configurations within per-item sync limits, but the browser's total sync quota still applies. Shorten unusually long URLs or reduce unnecessary custom entries if the complete configuration exceeds it. A failed save keeps the existing persisted configuration and leaves the draft available for correction; do not assume an error means your changes were saved.
+
+If the browser cannot provide sync storage, the extension can use a local fallback. A large legacy configuration that cannot migrate within total sync quota is retained locally instead of losing custom engines. Settings shows a notice when this happens. Reduce that configuration and use **Save changes** to retry migration; it stays saved locally if sync still cannot accept it. Once migration succeeds, the extension resumes using sync as its configuration backend.
 
 ## The extension does not work in private or incognito windows
 

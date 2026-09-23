@@ -23,6 +23,7 @@ let connectedBrowser = null;
 let braveProcess = null;
 const cdpSessions = new WeakMap();
 const configuredMobilePages = new WeakSet();
+let skippedChecks = 0;
 
 const builtInPages = [
   {
@@ -70,6 +71,7 @@ const builtInPages = [
 ];
 
 function log(message) {
+  if (message.startsWith('Skipping ')) skippedChecks++;
   process.stdout.write(`[integration] ${message}\n`);
 }
 
@@ -169,14 +171,14 @@ async function waitForInstallOptionsPage(context, extensionId) {
 
 async function readSettings(optionsPage) {
   return optionsPage.evaluate(async (key) => {
-    const stored = await globalThis.chrome.storage.local.get(key);
+    const stored = await globalThis.chrome.storage.sync.get(key);
     return stored[key] ?? null;
   }, storageKey);
 }
 
 async function writeSettings(optionsPage, value) {
   await optionsPage.evaluate(async ({ key, settings }) => {
-    await globalThis.chrome.storage.local.set({ [key]: settings });
+    await globalThis.chrome.storage.sync.set({ [key]: settings });
   }, { key: storageKey, settings: value });
 }
 
@@ -601,7 +603,7 @@ async function assertMobileOptionsLayout(page) {
 
   const layout = await page.evaluate(() => {
     const visibleInteractive = [...document.querySelectorAll(
-      'button, select, input:not([type="file"]), label.file-button',
+      'button, select, input:not([type="checkbox"]), label.toggle-row',
     )].filter((element) => {
       const rect = element.getBoundingClientRect();
       return rect.width > 1 && rect.height > 1 && getComputedStyle(element).display !== 'none';
@@ -762,7 +764,14 @@ async function submitStartpageSearch(page) {
     timeout: 45_000,
   });
   const input = page.locator('form#search input#q[name="query"]');
-  await input.waitFor({ timeout: 20_000 });
+  try {
+    await input.waitFor({ timeout: 20_000 });
+  } catch (error) {
+    const automationBlock = await detectAutomationBlock(page);
+    if (!automationBlock) throw error;
+    log(`Skipping Startpage submitted-results checks: ${automationBlock}`);
+    return { automationBlocked: automationBlock };
+  }
   await input.fill(complexQuery);
   await Promise.all([
     page.waitForURL((url) => url.pathname.startsWith('/sp/search'), { timeout: 45_000 }),
@@ -835,25 +844,28 @@ try {
   await optionsPage.locator('#custom-name').fill('Example Search');
   await optionsPage.locator('#custom-home-url').fill('https://example.com/');
   await optionsPage.locator('#custom-search-url').fill('https://example.com/search?q={query}');
-  await optionsPage.locator('#custom-icon-file').setInputFiles(
-    path.join(repositoryRoot, 'public', 'icons', 'icon-32.png'),
-  );
+  await optionsPage.locator('#custom-icon-url').fill('https://example.com/icon.png');
   await optionsPage.locator('#custom-engine-form button[type="submit"]').click();
   await optionsPage.locator('.custom-card', { hasText: 'Example Search' }).waitFor();
+  assert.equal((await readSettings(optionsPage)).customEngines.length, 0, 'Editor only changes the draft.');
+  await optionsPage.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await optionsPage.waitForFunction(async (key) => (await globalThis.chrome.storage.sync.get(key))[key]?.customEngines?.length === 1, storageKey);
   let storedSettings = await readSettings(optionsPage);
   assert.equal(storedSettings.customEngines.length, 1);
-  assert.match(storedSettings.customEngines[0].iconDataUrl, /^data:image\/png;base64,/);
+  assert.equal(storedSettings.customEngines[0].iconUrl, 'https://example.com/icon.png');
   const customEngineId = storedSettings.customEngines[0].id;
 
   await optionsPage.locator('#first-preference').selectOption(customEngineId);
+  await optionsPage.getByRole('button', { name: 'Save changes', exact: true }).click();
   await optionsPage.waitForFunction(
-    async ({ key, engineId }) => (await globalThis.chrome.storage.local.get(key))[key]?.firstPreferredEngineId === engineId,
+    async ({ key, engineId }) => (await globalThis.chrome.storage.sync.get(key))[key]?.firstPreferredEngineId === engineId,
     { key: storageKey, engineId: customEngineId },
   );
   assert.equal(await optionsPage.locator('#second-preference').isEnabled(), true);
   await optionsPage.locator('#second-preference').selectOption('google');
+  await optionsPage.getByRole('button', { name: 'Save changes', exact: true }).click();
   await optionsPage.waitForFunction(
-    async (key) => (await globalThis.chrome.storage.local.get(key))[key]?.secondPreferredEngineId === 'google',
+    async (key) => (await globalThis.chrome.storage.sync.get(key))[key]?.secondPreferredEngineId === 'google',
     storageKey,
   );
   assert.equal(
@@ -863,8 +875,9 @@ try {
     true,
   );
   await optionsPage.locator('#continue-without-preference').click();
+  await optionsPage.getByRole('button', { name: 'Save changes', exact: true }).click();
   await optionsPage.waitForFunction(
-    async (key) => !(await globalThis.chrome.storage.local.get(key))[key]?.firstPreferredEngineId,
+    async (key) => !(await globalThis.chrome.storage.sync.get(key))[key]?.firstPreferredEngineId,
     storageKey,
   );
 
@@ -1356,6 +1369,8 @@ try {
   await optionsPage.locator('#custom-name').fill('Example Search Renamed');
   await optionsPage.locator('#custom-engine-form button[type="submit"]').click();
   await optionsPage.locator('.custom-card', { hasText: 'Example Search Renamed' }).waitFor();
+  await optionsPage.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await optionsPage.waitForFunction(async (key) => (await globalThis.chrome.storage.sync.get(key))[key]?.customEngines?.[0]?.name === 'Example Search Renamed', storageKey);
   storedSettings = await readSettings(optionsPage);
   assert.equal(storedSettings.customEngines[0].id, customEngineId);
 
@@ -1363,15 +1378,18 @@ try {
   await optionsPage.locator('#second-preference').selectOption('google');
   optionsPage.once('dialog', (dialog) => dialog.accept());
   await optionsPage.getByRole('button', { name: 'Delete Example Search Renamed' }).click();
+  await optionsPage.getByRole('button', { name: 'Save changes', exact: true }).click();
   await optionsPage.waitForFunction(
-    async (key) => (await globalThis.chrome.storage.local.get(key))[key]?.customEngines?.length === 0,
+    async (key) => (await globalThis.chrome.storage.sync.get(key))[key]?.customEngines?.length === 0,
     storageKey,
   );
   storedSettings = await readSettings(optionsPage);
   assert.equal(storedSettings.firstPreferredEngineId, null);
   assert.equal(storedSettings.secondPreferredEngineId, null);
 
-  log('All Brave integration checks passed.');
+  log(skippedChecks
+    ? `Available Brave integration checks passed; ${skippedChecks} provider checks were skipped because of automation blocks.`
+    : 'All Brave integration checks passed.');
 } finally {
   await stopBrowser();
   const safeTempParent = path.resolve(tmpdir());

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <meta name="description" content="Official Free Search Switcher documentation. Move a submitted search between engines in Chromium browsers and Firefox, with local preferences and custom destinations.">
+    <meta name="description" content="Official Free Search Switcher documentation. Free Search Switcher 2.0.0: Firefox-first search switching, full Android support, Chromium compatibility, browser-native configuration sync, and custom destinations.">
     <meta name="theme-color" content="#101b1f">
     <title>Free Search Switcher · Documentation</title>
     <link rel="icon" href="assets/images/favicon.png" type="image/png">
@@ -32,8 +32,8 @@
         ['/usage/switching-search-engines', 'Switching search engines'],
         ['/configuration/settings', 'Settings'],
         ['/configuration/search-engines', 'Search engine reference'],
-        ['/browsers/chromium', 'Chromium browsers'],
         ['/browsers/firefox', 'Firefox'],
+        ['/browsers/chromium', 'Chromium browsers'],
         ['/privacy/permissions', 'Permissions'],
         ['/privacy/privacy', 'Privacy explained'],
         ['/privacy/privacy-policy', 'Privacy Policy'],
@@ -78,7 +78,7 @@
                 + (next ? '<a href="#' + next[0] + '"><small>Next</small>' + next[1] + '</a>' : '<span></span>')
                 + '</nav>';
             }
-            return html + navigation + '<footer class="documentation-footer">Free Search Switcher · <a href="#/privacy/privacy-policy">Privacy Policy</a> · <a href="https://github.com/CaptainRatax/Free-Search-Switcher" target="_blank" rel="noopener">GitHub</a><br>Documentation for extension version 1.0.0.</footer>';
+            return html + navigation + '<footer class="documentation-footer">Free Search Switcher · <a href="#/privacy/privacy-policy">Privacy Policy</a> · <a href="https://github.com/CaptainRatax/Free-Search-Switcher" target="_blank" rel="noopener">GitHub</a><br>Documentation for extension version 2.0.0.</footer>';
           });
           hook.doneEach(function () {
             const main = document.querySelector('.markdown-section');

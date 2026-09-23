@@ -1,0 +1,39 @@
+:root { color-scheme: light dark; font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #183127; background: #f3faf7; font-synthesis: none; }
+* { box-sizing: border-box; }
+/* The browser sizes the action panel from its body. A viewport-relative maximum
+   creates a sizing loop while the native popup is still being measured. */
+body { margin: 0; width: 380px; min-width: 380px; font-size: 14px; line-height: 1.5; }
+body.android { width: 280px; min-width: 280px; }
+header { display: flex; align-items: center; gap: 10px; padding: 16px; background: linear-gradient(135deg, #5982c8, #6bc1ed); color: #071525; }
+header img { width: 36px; height: 36px; }
+h1 { font-size: 17px; line-height: 1.25; margin: 0; }
+main { padding: 16px; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+label { display: block; font-weight: 600; margin-bottom: 5px; }
+label span:not(.toggle span) { font-weight: 400; }
+button, select, input { font: inherit; }
+select, button { width: 100%; min-height: 44px; border: 1px solid #719880; border-radius: 9px; background: #fff; color: inherit; padding: 8px 10px; }
+select { margin-bottom: 12px; }
+button, select, input { cursor: pointer; }
+button:hover { background: #d7feea; }
+button:disabled, select:disabled { cursor: default; opacity: .6; }
+:focus-visible { outline: 3px solid #3c64ae; outline-offset: 3px; }
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; min-height: 44px; }
+.toggle input { width: 24px; height: 24px; flex-shrink: 0; accent-color: #254b8d; }
+.help, #status { color: #52675b; font-size: 12px; }
+p { margin: 0 0 12px; }
+#status:empty { display: none; }
+#reload-warning { border: 1px solid #9d7016; background: #fff6db; border-radius: 9px; padding: 12px; margin-bottom: 12px; }
+#error { color: #a32319; }
+.settings { background: #d7feea; font-weight: 600; }
+.visually-hidden { clip-path: inset(50%); width: 1px; height: 1px; position: absolute; overflow: hidden; white-space: nowrap; }
+[hidden] { display: none !important; }
+@media (prefers-color-scheme: dark) {
+  :root { color: #e5f4eb; background: #12231b; }
+  select, button { background: #1e3328; border-color: #719880; }
+  button:hover, .settings { background: #2b4a39; }
+  .help, #status { color: #b7cdbe; }
+  #reload-warning { background: #39301d; border-color: #caa75f; }
+  #error { color: #ffb6ad; }
+  :focus-visible { outline-color: #8cbbff; }
+}

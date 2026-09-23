@@ -1,6 +1,6 @@
 {
   "name": "free-search-switcher",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A cross-browser extension for switching between preferred and custom search engines while preserving the current search query.",
   "private": true,
   "type": "module",
@@ -16,6 +16,10 @@
     "lint:firefox": "web-ext lint --source-dir .output/firefox-mv3 --warnings-as-errors --no-input",
     "test": "vitest run --pool=threads --maxWorkers=1",
     "test:integration": "node scripts/integration-smoke.js",
+    "test:v2": "node scripts/v2-smoke.js",
+    "test:popup:firefox": "node scripts/popup-firefox-smoke.js",
+    "test:popup:chromium": "node scripts/popup-chromium-smoke.js",
+    "capture:docs": "node scripts/capture-docs.js",
     "test:mobile": "node scripts/mobile-integration-smoke.js",
     "test:firefox": "node scripts/firefox-smoke.js",
     "test:firefox:mobile": "node scripts/firefox-mobile-smoke.js",

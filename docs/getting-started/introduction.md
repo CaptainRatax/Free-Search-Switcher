@@ -7,7 +7,7 @@ It adds two kinds of controls beside supported search bars:
 - A **quick-switch button** showing your preferred destination’s icon, when a preference gives you somewhere to switch.
 - A **menu arrow** for choosing any other built-in or custom engine.
 
-The extension uses your current tab. Its browser toolbar icon opens the settings page, which also opens on first installation.
+The extension uses your current tab. On desktop its toolbar icon opens a popup with immediate global/preference controls and Settings access. Full Settings opens on first installation and uses Save/Cancel; it is the main configuration interface on Firefox Android. Global and per-site switches apply on the next page load.
 
 ## A submitted search is the starting point
 

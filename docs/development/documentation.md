@@ -39,3 +39,23 @@ The current extension implementation is the source of truth for functionality. R
 `privacy/privacy-policy.md` is an exact copy of the root `PRIVACY.md`. Update it from the original policy when that policy changes; do not introduce additional legal or privacy promises into the copy.
 
 Screenshots should show the current extension running in a clean browser profile, using neutral queries without personal account or browser information. Store PNGs in `assets/screenshots/` and write meaningful alternative text and captions.
+
+To refresh the Settings, custom-engine editor, and popup captures from the packaged Firefox extension:
+
+```powershell
+$env:FSS_FIREFOX_PATH = 'C:\Program Files\Mozilla Firefox\firefox.exe'
+$env:FSS_GECKODRIVER_PATH = 'C:\tools\geckodriver.exe'
+npm run zip:firefox
+npm run capture:docs
+```
+
+Adjust the executable paths for your installation. The capture script uses a temporary Firefox profile with neutral example configuration and native browser screenshots. It writes the guide images into `docs/assets/screenshots/` and the full Settings image into `docs/screenshots/settings.png`. Review the images before committing them. Narrow viewport captures show the desktop Firefox layout at phone width; they are not physical Android screenshots.
+
+The capture script opens the popup document in a tab for its screenshot. To verify the actual toolbar panel and refresh its documentation image, also run:
+
+```powershell
+npm run test:popup:firefox
+Copy-Item .output/validation/firefox-toolbar-popup-dark.png docs/assets/screenshots/popup.png
+```
+
+The native popup test catches browser sizing problems that a tab screenshot cannot show. Run `npm run test:popup:chromium` after building Chromium to check the Brave/Chromium action panel as well.

@@ -1,79 +1,80 @@
 # Privacy Policy for Free Search Switcher
 
-**Effective date:** September 4, 2026  
-**Policy version:** 1.1  
-**Extension version:** 1.0.0
+**Effective date:** September 18, 2026
+
+**Policy version:** 2.0
+
+**Extension version:** 2.0.0
 
 ## Overview
 
-Free Search Switcher adds search-engine switching controls to a limited set of supported search-engine pages. It can carry the textual query from a submitted search to a search engine explicitly selected by the user. If there is no submitted query, it opens the selected engine's homepage instead.
+Free Search Switcher adds switching controls to seven supported search-engine origins. A user-selected destination receives the submitted textual query in its HTTPS navigation URL, or opens its homepage when there is no submitted query.
 
-The extension handles a small amount of information locally to provide this functionality. The extension developer does not receive stored settings, submitted queries, or current-page context. A submitted query is transmitted only to the destination search engine explicitly selected by the user, as described below. Free Search Switcher has no analytics, telemetry, advertising, user accounts, developer-operated servers, external databases, or cloud synchronization.
+The extension has no analytics, telemetry, tracking, ads, Free Search Switcher accounts, developer-operated servers, external developer databases, query logging, or browsing-history collection. The developer does not receive settings, searches, or current-page context. Browser-native configuration sync and optional external image requests are described below.
 
-## Information handled by the extension
+## Submitted queries and current-page context
 
-### Submitted search queries and current-page context
+On supported origins, the extension temporarily processes the current URL and limited page metadata to identify the engine, locate its search bar, and extract a submitted query and recognized search mode. Startpage POST results may expose the submitted query in non-editable hidden form metadata. Editable text that has not been submitted is not transferred.
 
-On the seven supported search-engine origins, Free Search Switcher processes the current page URL and limited search-page metadata to:
+Queries, current URLs, search modes, and browsing history are never written to `storage.local` or `storage.sync`, logged, or sent to developer services. They are not retained or synchronized. On a user-initiated switch, the submitted query and supported mode are used to construct the selected engine's HTTPS destination. Unsupported modes fall back to web search; filters, dates, pagination, regions, and other provider-specific parameters are not copied.
 
-- Identify the current supported search engine.
-- Determine whether the current page represents a submitted search.
-- Extract the textual submitted query, if present, so it can be transferred only if the user later chooses another engine.
-- Detect the current search mode (such as Web, Images, Videos, News, Maps, or Shopping) from the same page URL, so it can be preserved only if the user later chooses another engine that supports an equivalent mode.
-- Locate the search bar and display the extension's switching controls beside it.
+The popup can ask the current supported page for its engine identifier and enabled-state snapshot at load to decide whether a reload is required. That exchange does not include a query or current URL. Reload warnings and other temporary interface state are not stored or synchronized.
 
-The detected search mode is handled exactly like the submitted query described above: it is read transiently from the current page URL, is not written to extension storage or logged, and is only ever placed into the destination URL when the user explicitly switches engines. If the destination engine has no equivalent mode, the mode is discarded and a normal web search or homepage is used instead.
+For Chrome Web Store disclosure purposes, transient current-page processing is declared as **Website Content** and **Web History**: it involves the submitted text, limited submitted metadata, and current supported URL/domain. Free Search Switcher does not request history permission, access the history API, collect lists of visited pages, monitor unrelated browsing, or build a browsing profile.
 
-For Startpage results produced through a POST submission, the extension may read non-editable hidden form metadata containing the submitted query because the query may not be present in the page URL.
+## Configuration and browser-native sync
 
-This processing occurs locally and temporarily in the browser. Search queries and current-page URLs are not written to extension storage, logged, sent to the extension developer, or used to build a browsing history. Text that has merely been typed into an editable search field but has not been submitted is not transferred.
+The normal configuration backend is the WebExtensions `storage.sync` API. It contains only:
 
-For Chrome Web Store disclosure purposes, this transient current-page processing is declared as **Website Content** and **Web History**. Website Content includes the submitted textual query and Startpage's submitted hidden form metadata. Web History here means only the URL and domain of the currently open supported search page because Chrome's user-data guidance treats handled URLs as web-browsing activity. Free Search Switcher does not request the browser history permission, access the browser history API, read or store a list of visited pages, monitor unrelated browsing, create a browsing profile, or retain this current-page information.
+- Global enabled state and injection switches for the seven built-in sites.
+- First and second preferred engine identifiers.
+- Custom engine identifiers, names, HTTPS homepages, HTTPS search templates, optional HTTPS icon URL strings, and ordering.
+- Settings schema version and configuration metadata.
 
-### Locally stored settings
+Depending on browser, platform, account, and user settings, the browser provider may synchronize this configuration through the user's browser account. Free Search Switcher does not operate the sync server, create accounts, or receive synchronized settings. Firefox/Mozilla and Chromium sync ecosystems are separate; the extension implements no cross-browser sync service.
 
-Free Search Switcher stores the following information in the browser's extension-local storage:
+Firefox Desktop can synchronize extension settings when browser sync is supported and enabled. Firefox for Android does not synchronize these extension settings with Desktop Firefox through a Mozilla account. See [Mozilla's storage.sync documentation](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/sync). Chromium availability depends on the browser's own support and settings; [Chrome's storage documentation](https://developer.chrome.com/docs/extensions/reference/api/storage#sync) describes its native behavior.
 
-- The first and second preferred search-engine identifiers.
-- User-created custom engine definitions: a generated identifier, display name, HTTPS homepage URL, HTTPS search URL template, creation order, and an optional locally processed icon.
-- A storage schema version used for future migrations.
-- A marker recording that first-install onboarding has already opened.
+Configuration remains usable without an account. If the sync API is unavailable or cannot provide normal storage, a local fallback is used where possible. Ordinary configuration has one active storage backend, not two competing normal copies.
 
-Uploaded custom icons are processed locally in the settings page, normalized to a PNG Data URL, and stored locally. The original icon is not uploaded by the extension.
+The `freeSearchSwitcherOnboardingOpened` marker remains in `storage.local`, recording only whether first-install Settings has opened on that installation. It is not synchronized. Options drafts, popup state, reload warnings, current-page snapshots, and temporary UI state are also excluded from sync.
 
-## How information is used
+## Custom icon URLs
 
-The information described above is used only to provide and configure Free Search Switcher's single purpose: allowing the user to switch from a supported search-engine page to a chosen built-in or custom search engine while preserving a submitted textual query when one exists.
+A custom engine may have an optional HTTPS **Icon URL**. Free Search Switcher stores the URL string only. It does not accept image-file uploads, convert images to stored Data URLs, download images during URL validation, or upload/proxy images through a developer server.
 
-Local settings are used to build the preferred-engine quick switch, order the engine menu, display custom engines and icons, and update controls on supported pages when the user changes their configuration.
+When an icon is displayed, the browser may request the image from the external host chosen by the user. That host may receive normal network request information, such as the device's IP address, and handles the request under its own privacy practices. Free Search Switcher does not operate that host or receive those requests. Built-in icons are bundled with the extension. Missing or failed custom images use the engine's first letter; switching still works.
 
-## Information sharing and transmission
+## Upgrade from version 1
 
-Free Search Switcher does not sell, rent, monetize, or disclose user information to the extension developer, advertisers, data brokers, analytics providers, or other unrelated third parties.
+Migration preserves existing preferred engines, custom engine definitions, and their order from the legacy local configuration. Global and site switches default to enabled. Old uploaded icon data is discarded from migrated configuration; the custom engine itself remains and uses a first-letter icon until an icon URL is supplied. Legacy data is removed only after successful migration, or retained locally when needed for reliable recovery. Existing valid version 2 settings take precedence over stale legacy settings.
 
-When the user explicitly selects a destination engine while viewing submitted search results, the extension places the submitted textual query into that destination's HTTPS search URL and navigates the current tab. The query is therefore transmitted to the operator of the built-in or custom search engine selected by the user. This user-initiated transfer is necessary to perform the extension's stated purpose. If no submitted query exists, the extension navigates to the destination homepage without adding an empty search.
+## Information sharing and use
 
-The destination search engine processes the resulting request according to its own terms and privacy policy. Free Search Switcher does not control the destination provider's collection, retention, or use of information. Preferred-engine settings, custom-engine definitions, and custom icons are not transmitted to the selected provider by the extension.
+Configuration is used only to provide and configure search switching. Global and site settings determine whether controls start when a page loads; preferences and custom destinations configure the quick button and menu.
 
-In Firefox, the manifest declares required `searchTerms` data handling. This declaration refers only to the direct, user-initiated transfer described above: the submitted text goes to the search engine the user selects so that engine can perform the requested search. It is not sent through the extension developer or another intermediary, and the extension does not retain it.
+When you explicitly select an engine, the submitted query goes directly to that search provider as part of navigation. Its operator handles the request under its own terms and privacy policy. Free Search Switcher does not send preferred-engine configuration or the custom-engine catalog along with that navigation. Optional icon requests and browser-native configuration synchronization are separate operations described above.
 
-## Storage and retention
+In Firefox, the required `searchTerms` manifest declaration describes direct, user-initiated query transfer to the selected provider. It is not developer collection or retention. The extension does not sell, rent, monetize, or share information with advertisers, data brokers, or analytics services.
 
-Settings are stored with the browser's `storage.local` extension API on the user's device. They remain there until the user changes or deletes them, resets the relevant configuration, or removes the extension and its local data through the browser. Submitted queries and current-page context are transient and are not retained by Free Search Switcher.
+## Retention and user choices
 
-Free Search Switcher does not use external databases or cloud backups. Browser-level backup, device-management, or diagnostic behavior is controlled by the browser vendor or device administrator rather than by this extension.
+Configuration remains until changed or removed through the extension or browser. Synchronized copies and their deletion are governed by the browser provider's sync and account controls; removing one installation should not be assumed to remove every synchronized copy. Local fallback and onboarding data can be removed through the browser's extension-data controls. There is no search-history database to clear.
 
-## Permissions
+You can:
 
-Free Search Switcher requests only the following access:
+- Enable or disable the extension globally or on individual built-in sites, then reload affected pages.
+- Use no preferred engine, or change either preference.
+- Add, edit, and delete custom destinations and icon URLs.
+- Review a Settings draft before **Save changes**, or discard it with **Cancel**.
+- Manage browser sync through the browser's settings.
+- Remove the extension through the browser.
 
-### `storage`
+Desktop popup changes save immediately. Options-page changes remain in memory until saved. Deleting a custom first preference clears both preferred slots; deleting a custom second preference clears only that slot.
 
-This permission stores preferred-engine selections, custom-engine definitions, processed custom icons, the schema version, and the first-install onboarding marker locally. It also allows open supported pages to respond when these settings change.
+## Permissions and security
 
-### Access to seven supported HTTPS search-engine origins
-
-The extension's content script is statically limited to:
+The production extension requests only the `storage` API permission. Content-script access is statically limited to:
 
 - `https://www.ecosia.org/*`
 - `https://www.startpage.com/*`
@@ -83,47 +84,16 @@ The extension's content script is statically limited to:
 - `https://search.brave.com/*`
 - `https://www.google.com/*`
 
-This access is required to identify the supported engine, determine the submitted textual query, locate the search bar, and inject or update the switching controls. Free Search Switcher does not request access to all websites and does not inject controls into custom-engine or unrelated websites.
+Custom engines do not gain content scripts or arbitrary host permissions. The extension does not request `<all_urls>`, broad `tabs` access, history, cookies, bookmarks, web requests, downloads, or clipboard access. The popup uses an active tab identifier for content-script messaging and reloading without requesting access to all tab URLs.
 
-The extension does not request access to browser history, tabs, cookies, bookmarks, web requests, downloads, the clipboard, or arbitrary HTTP or HTTPS websites.
-
-Firefox desktop 140 and Firefox for Android 142 are the minimum supported versions because those releases provide Firefox's built-in data-consent handling for the manifest declaration described above.
-
-## Remote code and external services
-
-All executable JavaScript and runtime assets are included in the extension package. Free Search Switcher does not download or execute remote JavaScript or WebAssembly, load remote script modules, or use `eval`, `Function`, or similar dynamic code execution.
-
-Built-in engine icons are bundled with the extension. Custom icons are supplied and processed locally by the user. The extension does not use analytics, telemetry, advertising, tracking pixels, remote APIs, or remotely hosted runtime assets.
-
-## Security
-
-Built-in and custom navigation targets must use HTTPS. Custom search templates are validated before they are saved, must contain exactly one literal `{query}` placeholder, and cannot place the placeholder in the URL authority. Uploaded icons are type- and size-checked and processed locally.
-
-No method of software operation or network transmission can be guaranteed to be completely secure. Users should review the privacy practices of any search engine they choose as a destination.
-
-## User choices and control
-
-Users may:
-
-- Use the extension with no preferred engine.
-- Change or clear preferred-engine selections at any time.
-- Add, edit, or delete custom engines and their locally stored icons.
-- Remove the extension and its extension-local data through the browser.
-
-Deleting a custom engine also removes it from any preferred-engine selection according to the extension's preference rules.
+Executable JavaScript is included in the extension package. The extension does not fetch or execute remote code. Built-in and custom navigation requires HTTPS; custom templates require exactly one literal `{query}` after the hostname and reject embedded credentials. Optional icon URLs are checked for valid HTTPS syntax. Format checks do not guarantee a provider's availability or privacy practices.
 
 ## Chrome Web Store Limited Use
 
-Free Search Switcher's use and transfer of information complies with the Chrome Web Store User Data Policy, including the Limited Use requirements. Information is used only as necessary to provide the extension's prominent, user-facing search-switching functionality.
+Free Search Switcher's use and transfer of information complies with the Chrome Web Store User Data Policy, including Limited Use requirements. Information is used only as necessary for its user-facing search-switching functionality.
 
-## Changes to this policy
+## Changes and contact
 
-This policy may be updated if the extension's functionality, data handling, or legal requirements change. Material changes will be documented in the repository, and the effective date at the top of this policy will be updated. The version published with the extension should be read as the current policy.
+Material changes to data handling are documented in the repository and reflected in this policy's effective date. Read the policy shipped with your installed version.
 
-## Contact
-
-For privacy questions or concerns, open an issue in the project's GitHub repository:
-
-https://github.com/CaptainRatax/Free-Search-Switcher/issues
-
-GitHub issues are public. Do not include search queries or other sensitive or personal information in an issue.
+For privacy questions, open an issue in the [project repository](https://github.com/CaptainRatax/Free-Search-Switcher/issues). GitHub issues are public; do not include private queries, account details, or other sensitive information.

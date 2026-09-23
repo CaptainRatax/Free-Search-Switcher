@@ -1,4 +1,7 @@
 import { defineConfig } from 'wxt';
+import { readFileSync } from 'node:fs';
+
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 const SUPPORTED_MATCHES = [
   'https://www.ecosia.org/*',
@@ -23,12 +26,12 @@ export default defineConfig({
   manifestVersion: 3,
   manifest: ({ browser }) => ({
     name: 'Free Search Switcher',
-    version: '1.0.0',
+    version,
     description: 'A cross-browser extension for switching between preferred and custom search engines while preserving the current search query.',
     permissions: ['storage'],
     icons,
     action: {
-      default_title: 'Open Free Search Switcher settings',
+      default_title: 'Free Search Switcher',
       default_icon: icons,
     },
     web_accessible_resources: [
