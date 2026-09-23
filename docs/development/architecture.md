@@ -1,73 +1,78 @@
 # Architecture
 
-Free Search Switcher is a small WXT extension written in Vanilla JavaScript, HTML, and CSS. Its UI lives beside supported search bars and in a settings tab. There is no popup entrypoint, browser-wide keyboard command, context-menu component, or remote service.
+Free Search Switcher 2.0.0 is a Firefox-first WXT extension written in Vanilla JavaScript, HTML, and CSS. Firefox Desktop is the primary target; Firefox for Android shares the Firefox package and remains supported. Chromium is the secondary compatibility target. UI appears in a desktop popup, a full Settings tab, and beside supported search bars.
 
 ## Repository map
 
 | Location | Responsibility |
 | --- | --- |
-| `wxt.config.js` | Shared Manifest V3 configuration, permissions, action title/icons, packaged icon access, and Firefox-specific settings. |
-| `entrypoints/background.js` | First-install settings onboarding and reopening settings from the extension action. |
-| `entrypoints/content.js` | Bootstrap the switcher on the seven statically matched origins and subscribe to settings changes. |
-| `entrypoints/options/` | Shared onboarding/settings tab: preferred engines, custom engine editor, local icon processing. |
-| `ui/search-switcher-ui.js` | Closed Shadow DOM, quick button, engine menu, keyboard handling, positioning, observers, and recovery. |
-| `utils/engines.js` | Built-in destinations and mode capabilities, fixed ordering, preferred quick target, custom ordering, and menu deduplication. |
-| `utils/modes.js` | The six normalized modes: Web, Images, Videos, News, Maps, and Shopping. |
-| `utils/navigation.js` | Read submitted URL queries and construct encoded destination URLs with mode/homepage fallback. |
-| `utils/settings.js` | Defaults, schema normalization, preferred-engine rules, and custom create/edit/delete operations. |
-| `utils/storage.js` | `storage.local` load/save and local settings-change subscription. |
-| `utils/validation.js` | HTTPS URL validation, literal query placeholder rules, and safe local icon Data URLs. |
-| `utils/adapters/` | Exact-origin detection, per-engine search-bar selectors, submitted-query extraction, mode detection, and mobile placement helpers. |
-| `public/icons/`, `public/engine-icons/` | Packaged extension branding and engine icons. |
-| `assets/` | Original extension and engine icon source assets. |
-| `tests/` | Vitest pure-logic tests. |
-| `scripts/` | Live Chromium integration and packaged Firefox smoke tests, with mobile wrappers. |
-| `docs/` | Browser-rendered Docsify documentation and documentation assets. |
+| `wxt.config.js` | Manifest V3 configuration, permissions, bundled resources, and Firefox settings. |
+| `entrypoints/background.js` | First-install onboarding; the marker stays local to each installation. |
+| `entrypoints/popup/` | Immediate global/preference saves, Settings access, and active-page reload feedback; Android provides Settings access. |
+| `entrypoints/content.js` | Exact-origin bootstrap, page-load eligibility snapshot, runtime messaging, and settings subscription. |
+| `entrypoints/options/` | Full configuration with baseline/draft state, Save/Cancel, external-change handling, and custom engine editor. |
+| `ui/search-switcher-ui.js` | Closed Shadow DOM, quick button, menu, keyboard handling, positioning, and recovery. |
+| `utils/engines.js` | Built-in destinations and modes, fixed ordering, preferred quick target, and menu deduplication. |
+| `utils/modes.js` | Normalized Web, Images, Videos, News, Maps, and Shopping modes. |
+| `utils/navigation.js` | Submitted-query extraction and encoded destination URLs with mode/homepage fallback. |
+| `utils/settings.js` | Schema version 2, defensive normalization, preferred-engine rules, and custom operations. |
+| `utils/storage.js` | Browser wrapper exposing normalized load/save/status and change notifications. |
+| `utils/settings-storage.js` | Sync persistence, quota-safe encoding, migration, fallback selection, and storage events. |
+| `utils/validation.js` | HTTPS navigation and icon URL validation, and literal query-placeholder rules. |
+| `utils/adapters/` | Exact-origin detection, search-bar selectors, submitted-query extraction, and mobile placement. |
+| `public/icons/`, `public/engine-icons/` | Bundled extension and built-in engine icons. |
+| `tests/` | Unit and DOM coverage of settings, storage, migration, Options, popup, lifecycle, and navigation. |
+| `scripts/` | Live Chromium integration and packaged Firefox smoke tests with mobile variants. |
 
-## Installation and settings
+## Configuration and persistence
 
-The background entrypoint listens for the runtime installation event. On `reason === 'install'`, it checks the local `freeSearchSwitcherOnboardingOpened` marker, records it if absent, and calls `runtime.openOptionsPage()`. Updates do not trigger that onboarding path. Clicking the extension action also calls `runtime.openOptionsPage()`.
+Schema version 2 adds `enabled: true` and a `siteEnabled` object with all seven built-in engine IDs set to `true`. Preferences default to `null` and custom engines to an empty array. Normalization tolerates malformed/missing input, rejects invalid custom navigation definitions, removes duplicate IDs, and clears invalid or duplicate preferred selections. An invalid optional icon URL falls back to no icon without discarding an otherwise valid engine.
 
-WXT generates `options_ui` with `open_in_tab: true` from the options HTML. The first-install page and later settings page are the same interface.
+Only configuration reaches `storage.sync`: schema metadata, global/site switches, preferred engine IDs, and ordered custom definitions with `iconUrl` strings. Storage internals are hidden behind load/save/change functions. Small configurations use one `freeSearchSwitcherSettings` sync item. Larger configurations use that key as a revision manifest plus `freeSearchSwitcherSettings:chunk:<revision>:<index>` records, respecting per-item UTF-8/JSON size limits. Total quota checks reject a normal save before changing its saved snapshot, with no fixed engine-count cap or silently truncated list.
 
-The settings object is stored under `freeSearchSwitcherSettings` with schema version `1`. Its defaults are no first preference, no second preference, and no custom engines. Normalization rejects invalid custom definitions, removes duplicate IDs, clears invalid preferences, and prevents the two preferred slots from containing the same engine. Without a first preference, a second preference cannot remain selected.
+If sync is unavailable, a shared local `freeSearchSwitcherStorageBackend` marker selects the single `freeSearchSwitcherSettingsV2Local` fallback record. `getSettingsStorageStatus()` exposes backend and reason. A migrated legacy list too large for total sync quota remains usable locally while the legacy backup is retained. An explicit Options Save retries that migration: once the reduced configuration fits and the sync write succeeds, it removes the fallback marker and local records so every context uses sync. Failed retries keep the saved local configuration. Ordinary quota errors in the normal sync backend do not silently switch backend. Sync remains the normal authority, with no parallel normal copy of settings.
 
-Preference changes save immediately. Custom engines save when their editor is submitted. Editing preserves a custom engine's identifier and creation order. Deleting the first preferred custom engine clears both preferred slots; deleting the second clears only that slot.
+Migration reads the legacy `freeSearchSwitcherSettings` record from `storage.local`. Existing valid v2 settings take precedence over stale v1 data. Migration preserves preferences, custom engine identities and order, supplies enabled defaults, and drops legacy `iconDataUrl` values while keeping their engines. Cleanup happens only after a successful migration write; repeating migration is safe.
+
+The first-install `freeSearchSwitcherOnboardingOpened` marker remains in `storage.local` and is never synchronized. On installation the background checks it, records it, and opens Options; updates do not reopen onboarding. Queries, current URLs, modes, popup state, eligibility snapshots, and Options drafts are never stored or synchronized.
+
+Firefox Desktop can use Mozilla sync, while Chromium uses the browser's own supported service. These ecosystems are separate. Firefox for Android does not synchronize extension data with the user's Mozilla account. See [MDN storage.sync](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/sync).
+
+## Settings and popup state
+
+Options loads a persisted baseline and keeps a working draft. Every control, including custom add/edit/delete and icon changes, edits the draft only. Page-level Save validates and persists the full draft, replaces the baseline, and clears dirty state. Cancel loads the latest persisted configuration. A `beforeunload` handler warns while the draft is dirty.
+
+Storage changes refresh a clean Options page. A dirty page retains edits and exposes an accessible external-change warning and reset action. The implementation deliberately has no distributed merge.
+
+The desktop popup saves global and preferred settings immediately, with the same preference invariants. To decide whether the active page needs reloading, it asks the content script for its immutable load snapshot and compares that with saved settings. It does not infer a warning merely because a toggle changed, nor need the active URL, browsing history, or broad `tabs` permission. Reload uses the active tab ID. Unsupported pages without a supported snapshot show no misleading warning.
+
+Android uses the full Options page as its main settings interface; its action popup provides simple access to that page.
 
 ## Content-script lifecycle
 
-The content script runs at `document_idle` on seven exact HTTPS origins. It identifies an adapter from the current URL, loads normalized settings, starts one switcher UI instance, and listens for local storage changes. WXT context invalidation removes the subscription and stops the UI.
+The content script runs at `document_idle` on seven exact HTTPS origins. It detects the adapter and loads settings, then records the detected engine, global enabled flag, that site's flag, and whether both allowed injection. Runtime messaging exposes this snapshot to the popup even if injection was disabled.
 
-The UI creates a host marked `data-free-search-switcher-root` with a **closed Shadow DOM**. The isolated styles follow the icon palette and respond to dark mode, forced colors, and viewport size. Engine names and custom content are constructed through DOM APIs rather than inserted as user-provided HTML. Built-in icons use `runtime.getURL()`; custom icons use locally stored Data URLs.
+`SearchSwitcherUi` starts only for eligible loads. Later global/site changes do not create or remove a UI instance; reload/navigation applies them. Regular preference and custom-engine changes can update a running UI. WXT context invalidation removes listeners and stops the instance.
 
-Mutation, resize, scroll, URL, and visual viewport monitoring keep controls attached to the current visible search bar and recover after client rendering replaces or moves it. Adapters reject hidden, inert, transparent, or disconnected anchors. Recognized Ecosia consent and Qwant challenge overlays can suppress mounting.
+The host uses a closed Shadow DOM. Isolated styles respond to dark mode, forced colors, and viewport size. DOM APIs construct user-provided names without inserting HTML. Built-in icons use `runtime.getURL()`; custom icons use validated HTTPS URL strings, with first-letter fallback on image failure. No file upload, canvas conversion, Data URL persistence, icon proxy, or extra custom-host permission is needed.
 
-Desktop positioning chooses available space beside the bar. At viewport widths up to 700 CSS pixels, controls use larger touch targets and engine-specific safe placement or reserved space. The engine menu can flip upward and clamps to the visual viewport. These are automatic layout behaviors, not user-selectable appearance settings.
+Mutation, resize, scroll, URL, and visual viewport monitoring keep controls beside a recognized visible bar after site rendering changes. Adapters reject hidden, inert, transparent, and disconnected anchors; Ecosia consent and Qwant challenge overlays suppress mounting. Narrow layouts keep larger touch targets, engine-specific placement, and a menu that flips and clamps to the viewport.
 
 ## From a click to a destination
 
-1. Engine definitions and preferred slots determine the quick-switch target and menu. The menu omits the current engine, then lists the remaining preferred engines, remaining built-ins in their fixed order, and custom engines in creation order.
-2. When the user selects a target, the UI reads `window.location.href` at that moment.
-3. The source adapter extracts the submitted query and detects a normalized search mode.
-4. The destination's declared capability selects its mode-specific template, falling back to the general search template when needed. With no submitted query, navigation uses a declared mode homepage or the engine homepage.
-5. `encodeURIComponent` replaces the one literal `{query}` placeholder, and `window.location.assign()` navigates the current tab.
+1. Preferences choose the quick target. The full menu omits the current engine and duplicates, places preferred engines first, then remaining built-ins in fixed order, and custom engines in creation order. Google remains the final built-in. Site-injection switches never filter destinations.
+2. At the click, the adapter reads the current URL and extracts the submitted query and normalized mode.
+3. The destination chooses a verified mode template or general-search fallback. Without a query, it chooses a mode homepage or normal homepage.
+4. `encodeURIComponent` replaces the single `{query}` placeholder and `window.location.assign()` navigates the current tab.
 
-Filters, pagination, region, SafeSearch, and other source-specific parameters are not copied. Custom destinations use their single general template and therefore receive the Web fallback.
+Most submitted queries come from `q`; Startpage uses `query` and submitted hidden metadata for POST results. Google Maps can use `/maps/search/{query}`. Editable text is not evidence of submission. Filters, pagination, region, and SafeSearch are not copied. Custom destinations use their single general template.
 
-Most submitted queries come from URL parameter `q`; Startpage uses `query` and can fall back to hidden submitted form metadata on `/sp/search`. Google Maps also extracts a query from `/maps/search/{query}`. Editable visible search inputs are used to find the bar, not as proof of a submitted query.
+Startpage's native tabs may change results without updating the mode URL, which URL-based detection cannot infer reliably. Existing provider-specific mounting and mode limitations remain documented in the [engine reference](/configuration/search-engines.md).
 
-Each adapter supplies URL-based mode detection. Unknown values normalize to Web. Startpage's native category tabs can change the visible mode without updating its `cat` URL parameter; the extension follows the URL mode and cannot infer that hidden change reliably. Provider-specific details and mounting limitations are documented in the [search-engine reference](/configuration/search-engines.md).
+## Browser and privacy boundaries
 
-## Browser differences
+Both builds use WXT's browser wrapper. Chromium runs a module background service worker; Firefox uses module background scripts. Firefox retains ID `{9b6a0b52-51a6-44e1-945d-19209156934e}`, desktop minimum `140.0`, Android minimum `142.0`, and the required `searchTerms` declaration.
 
-Both production targets use Manifest V3 and WXT's `wxt/browser` API wrapper. Chromium's generated manifest uses a module **background service worker**; Firefox's uses module **background scripts**. Shared code handles settings and switching in both browsers.
+Only `storage` is requested as an API permission. Content scripts and bundled icon resources remain limited to the seven built-in origins. Custom engines are navigation destinations only.
 
-Firefox adds its Gecko identifier, desktop minimum `140.0`, Android minimum `142.0`, and required `searchTerms` data declaration. The same Firefox package serves desktop and Android. Chromium has no explicit minimum version in the current manifest configuration. Production API access and supported content-script origins are otherwise the same.
-
-## Privacy and security boundaries
-
-The runtime has no remote API client or developer server. The only search transfer is user-initiated navigation to a selected destination. Search query/context is transient; only configuration and the onboarding marker use local storage. Uploaded icons are checked, decoded locally, and normalized to a 128 × 128 PNG. Generated options code can include Vite's module-preload compatibility helper, which loads referenced chunks from the local extension package.
-
-Custom definitions require HTTPS URLs without embedded username/password credentials and exactly one literal `{query}` placeholder after the URL authority. This validation checks the format; it does not certify a destination provider's privacy or reliability. No content script is added for a custom domain.
-
-Read [Permissions](/privacy/permissions.md), [Privacy](/privacy/privacy.md), and the [Privacy Policy](/privacy/privacy-policy.md) before changing data handling or access. For build and test commands, see [Build, load, and test](/development/building.md).
+Executable code is bundled. The developer operates no account, server, sync service, icon proxy, analytics, or telemetry. Browser providers may synchronize configuration; external icon hosts may receive browser image requests. Query and page context stay transient and are never logged. Read [Privacy](/privacy/privacy.md) and [Permissions](/privacy/permissions.md) before changing these boundaries.

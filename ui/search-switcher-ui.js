@@ -273,13 +273,14 @@ function createEngineIcon(document, engine) {
   icon.textContent = engine.name.trim().charAt(0) || '?';
 
   const imageSource = engine.kind === 'custom'
-    ? engine.iconDataUrl
+    ? engine.iconUrl
     : browser.runtime.getURL(engine.iconPath.replace(/^\//, ''));
 
   if (imageSource) {
     const image = document.createElement('img');
     image.alt = '';
     image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
     image.src = imageSource;
     image.addEventListener('error', () => image.remove(), { once: true });
     icon.append(image);

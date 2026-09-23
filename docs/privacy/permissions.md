@@ -8,9 +8,9 @@ The production manifests for Chromium and Firefox use the same API permission an
 
 | Permission | Why it is needed |
 | --- | --- |
-| `storage` | Save preferred engines, custom engine definitions, processed custom icons, the settings schema version, and the first-install onboarding marker on your device. Notify open supported pages when saved settings change. |
+| `storage` | Save global/site switches, preferences, ordered custom definitions with icon URL strings, and schema metadata through browser-native sync. Keep onboarding and fallback metadata local; notify open interfaces of saved changes. |
 
-The implementation uses `storage.local`. It does not use browser sync storage. Submitted queries and current-page URLs are not written to storage.
+The normal configuration backend is `storage.sync`. `storage.local` remains intentional for the onboarding marker, legacy migration, fallback-backend metadata, and fallback configuration when sync storage is unavailable or a legacy configuration exceeds the migration quota. There are no competing normal settings copies. Queries, current URLs, search modes, history, drafts, and reload warnings are not synchronized; queries and current URLs are never written to either storage area.
 
 ## Supported website access
 
@@ -28,7 +28,7 @@ This access lets the extension read the current supported URL, identify a submit
 
 The exact HTTPS hostnames matter. Other domains, country-specific Google domains, HTTP pages, and unrelated websites are outside the content-script matches. Adding a custom engine saves a navigation destination; it does not grant website access to that destination or add controls there.
 
-Both production manifests also expose the bundled `engine-icons/*.png` images to these seven origins through `web_accessible_resources`. This allows the injected interface to show its packaged engine icons; it is not permission to load remote icons.
+Both production manifests also expose the bundled `engine-icons/*.png` images to these seven origins through `web_accessible_resources`. This allows the injected interface to show its packaged engine icons; custom HTTPS icon URLs use normal browser image rendering without arbitrary custom-engine host permissions. The browser may contact the selected external image host; Free Search Switcher runs no icon proxy.
 
 Technically, site access comes from the static `content_scripts.matches` declarations. The current generated production manifests do not have a separate `host_permissions` or `optional_host_permissions` entry, and the extension does not request further access at runtime.
 
@@ -50,7 +50,7 @@ The manifest sets Firefox desktop **140.0** and Firefox for Android **142.0** as
 
 The production manifests do not request `tabs`, `activeTab`, `scripting`, browser history, cookies, bookmarks, web requests, downloads, clipboard access, or arbitrary HTTP/HTTPS access. There is no `<all_urls>` match.
 
-The toolbar action opens the settings page through `runtime.openOptionsPage()`. Engine switching uses page navigation in the current tab. These actions do not require the `tabs` permission.
+The desktop action opens the popup. Its Settings button uses `runtime.openOptionsPage()`. The popup can query the active tab identifier, message the already-permitted content script for its page-load state, and reload that tab without broad `tabs` permission or inspecting every tab URL. Engine switching still navigates the current page. On Android the action provides simple access to full Settings.
 
 If website access has been withheld in your browser, the in-page controls may not appear. Review access for the affected supported engine in your browser's extension manager, then reload the search page. See [Troubleshooting](/troubleshooting.md).
 

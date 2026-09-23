@@ -1,143 +1,148 @@
-import { getSelectableEngines, sortCustomEngines } from '../../utils/engines.js';
-import { deleteCustomEngine, upsertCustomEngine } from '../../utils/settings.js';
-import { loadSettings, saveSettings } from '../../utils/storage.js';
+import { BUILT_IN_ENGINES, getSelectableEngines, sortCustomEngines } from '../../utils/engines.js';
+import {
+  loadSettings, saveSettings, listenForSettingsChanges, getSettingsStorageStatus,
+} from '../../utils/storage.js';
+import { OptionsDraft } from './draft.js';
 
-const MAX_ICON_FILE_SIZE = 2 * 1024 * 1024;
-const SAFE_ICON_TYPES = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'image/x-icon',
-  'image/vnd.microsoft.icon',
-]);
+const elements = Object.fromEntries([
+  'enabled', 'site-settings', 'first-preference', 'second-preference', 'preference-error',
+  'save-status', 'save-error', 'save-changes', 'cancel-changes', 'dirty-status',
+  'external-warning', 'reload-saved-settings', 'continue-without-preference',
+  'built-in-engine-list', 'custom-engine-list', 'add-custom-engine', 'custom-engine-form',
+  'editor-title', 'custom-name', 'custom-home-url', 'custom-search-url', 'custom-icon-url',
+  'cancel-custom-engine', 'cancel-custom-engine-secondary', 'editor-error-summary',
+  'custom-name-error', 'custom-home-url-error', 'custom-search-url-error', 'custom-icon-error',
+].map((id) => [id, document.getElementById(id)]));
 
-const elements = {
-  firstPreference: document.querySelector('#first-preference'),
-  secondPreference: document.querySelector('#second-preference'),
-  preferenceError: document.querySelector('#preference-error'),
-  saveStatus: document.querySelector('#save-status'),
-  continueWithoutPreference: document.querySelector('#continue-without-preference'),
-  builtInEngineList: document.querySelector('#built-in-engine-list'),
-  customEngineList: document.querySelector('#custom-engine-list'),
-  addCustomEngine: document.querySelector('#add-custom-engine'),
-  customEngineForm: document.querySelector('#custom-engine-form'),
-  editorTitle: document.querySelector('#editor-title'),
-  customName: document.querySelector('#custom-name'),
-  customHomeUrl: document.querySelector('#custom-home-url'),
-  customSearchUrl: document.querySelector('#custom-search-url'),
-  customIconFile: document.querySelector('#custom-icon-file'),
-  customIconPreview: document.querySelector('#custom-icon-preview'),
-  customIconError: document.querySelector('#custom-icon-error'),
-  removeCustomIcon: document.querySelector('#remove-custom-icon'),
-  cancelCustomEngine: document.querySelector('#cancel-custom-engine'),
-  cancelCustomEngineSecondary: document.querySelector('#cancel-custom-engine-secondary'),
-  editorErrorSummary: document.querySelector('#editor-error-summary'),
-  customNameError: document.querySelector('#custom-name-error'),
-  customHomeUrlError: document.querySelector('#custom-home-url-error'),
-  customSearchUrlError: document.querySelector('#custom-search-url-error'),
+let model;
+let removeSettingsListener;
+const fieldIds = {
+  name: ['custom-name', 'custom-name-error'],
+  homeUrl: ['custom-home-url', 'custom-home-url-error'],
+  searchUrlTemplate: ['custom-search-url', 'custom-search-url-error'],
+  iconUrl: ['custom-icon-url', 'custom-icon-error'],
 };
 
-let settings = await loadSettings();
-let editingEngineId = null;
-let pendingIconDataUrl = null;
-let statusTimer = null;
-
-function createEngineIcon(engine, className = 'engine-icon') {
+function createEngineIcon(engine) {
   const container = document.createElement('span');
-  container.className = className;
+  container.className = 'engine-icon';
   container.setAttribute('aria-hidden', 'true');
   container.textContent = engine.name.trim().charAt(0) || '?';
-
-  const imageSource = engine.kind === 'custom' ? engine.iconDataUrl : engine.iconPath;
-  if (imageSource) {
+  const source = engine.kind === 'custom' ? engine.iconUrl : engine.iconPath;
+  if (source) {
     const image = document.createElement('img');
     image.alt = '';
-    image.src = imageSource;
+    image.referrerPolicy = 'no-referrer';
     image.addEventListener('error', () => image.remove(), { once: true });
+    image.src = source;
     container.append(image);
   }
-
   return container;
 }
 
 function announce(message) {
-  window.clearTimeout(statusTimer);
-  elements.saveStatus.textContent = message;
-  statusTimer = window.setTimeout(() => {
-    elements.saveStatus.textContent = '';
-  }, 3_000);
+  elements['save-status'].textContent = message;
 }
 
-function addSelectOption(select, engine, selectedId, unavailableId = null) {
-  const option = document.createElement('option');
-  option.value = engine.id;
-  option.textContent = engine.kind === 'custom' ? `${engine.name} (Custom)` : engine.name;
-  option.selected = engine.id === selectedId;
-  option.disabled = engine.id === unavailableId;
-  select.append(option);
+function clearSaveError() {
+  elements['save-error'].hidden = true;
+  elements['save-error'].textContent = '';
+}
+
+async function renderStorageNotice() {
+  const { backend, reason } = await getSettingsStorageStatus();
+  const notice = document.getElementById('storage-notice');
+  notice.hidden = backend !== 'local';
+  notice.textContent = reason === 'migration-quota'
+    ? 'Your existing settings are preserved on this device because they exceed browser sync limits. Reduce the configuration and save again to enable browser-native sync.'
+    : 'Browser sync storage is unavailable. Settings are saved on this device.';
+}
+
+function updateState() {
+  elements['save-changes'].disabled = !model.dirty || model.saving;
+  elements['cancel-changes'].disabled = !model.dirty || model.saving;
+  elements['reload-saved-settings'].disabled = model.saving;
+  elements['save-changes'].textContent = model.saving ? 'Saving…' : 'Save changes';
+  elements['dirty-status'].textContent = model.dirty ? 'Unsaved changes' : 'All changes saved';
+  elements['external-warning'].hidden = !model.externalChanged;
+  document.querySelector('main').setAttribute('aria-busy', String(model.saving));
+}
+
+function changed() {
+  clearSaveError();
+  announce('');
+  updateState();
 }
 
 function renderPreferences() {
+  const settings = model.draft;
   const engines = getSelectableEngines(settings.customEngines);
-  elements.firstPreference.replaceChildren();
-  elements.secondPreference.replaceChildren();
+  const renderSelect = (select, selectedId, emptyText, unavailableId = null) => {
+    select.replaceChildren();
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = emptyText;
+    select.append(empty);
+    engines.forEach((engine) => {
+      const option = document.createElement('option');
+      option.value = engine.id;
+      option.textContent = engine.kind === 'custom' ? `${engine.name} (Custom)` : engine.name;
+      option.disabled = engine.id === unavailableId;
+      select.append(option);
+    });
+    select.value = selectedId ?? '';
+  };
+  renderSelect(elements['first-preference'], settings.firstPreferredEngineId, 'No preferred engine');
+  renderSelect(elements['second-preference'], settings.secondPreferredEngineId,
+    'No second preferred engine', settings.firstPreferredEngineId);
+  elements['second-preference'].disabled = !settings.firstPreferredEngineId || model.saving;
+  elements['preference-error'].hidden = true;
+}
 
-  const noFirst = document.createElement('option');
-  noFirst.value = '';
-  noFirst.textContent = 'No preferred engine';
-  noFirst.selected = !settings.firstPreferredEngineId;
-  elements.firstPreference.append(noFirst);
-
-  const noSecond = document.createElement('option');
-  noSecond.value = '';
-  noSecond.textContent = 'No second preferred engine';
-  noSecond.selected = !settings.secondPreferredEngineId;
-  elements.secondPreference.append(noSecond);
-
-  engines.forEach((engine) => {
-    addSelectOption(elements.firstPreference, engine, settings.firstPreferredEngineId);
-    addSelectOption(
-      elements.secondPreference,
-      engine,
-      settings.secondPreferredEngineId,
-      settings.firstPreferredEngineId,
-    );
+function renderSites() {
+  const toggles = BUILT_IN_ENGINES.map((engine) => {
+    const label = document.createElement('label');
+    label.className = 'toggle-row';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `site-${engine.id}`;
+    checkbox.checked = model.draft.siteEnabled[engine.id];
+    checkbox.disabled = model.saving;
+    checkbox.addEventListener('change', () => {
+      model.setSiteEnabled(engine.id, checkbox.checked);
+      changed();
+    });
+    const name = document.createElement('span');
+    name.textContent = engine.id === 'brave' ? 'Brave Search' : engine.name;
+    label.append(checkbox, createEngineIcon(engine), name);
+    return label;
   });
-
-  elements.secondPreference.disabled = !settings.firstPreferredEngineId;
-  elements.preferenceError.hidden = true;
-  elements.preferenceError.textContent = '';
+  elements['site-settings'].replaceChildren(...toggles);
 }
 
 function renderBuiltInCatalog() {
-  const builtIns = getSelectableEngines([]);
-  const items = builtIns.map((engine) => {
+  elements['built-in-engine-list'].replaceChildren(...BUILT_IN_ENGINES.map((engine) => {
     const item = document.createElement('li');
     item.className = 'engine-chip';
-    item.append(createEngineIcon(engine));
     const name = document.createElement('span');
     name.textContent = engine.name;
-    item.append(name);
+    item.append(createEngineIcon(engine), name);
     return item;
-  });
-  elements.builtInEngineList.replaceChildren(...items);
+  }));
 }
 
 function renderCustomEngines() {
-  const customEngines = sortCustomEngines(settings.customEngines);
-  if (!customEngines.length) {
-    const emptyState = document.createElement('p');
-    emptyState.className = 'empty-state';
-    emptyState.textContent = 'No custom engines yet. Add one using its HTTPS homepage and search URL template.';
-    elements.customEngineList.replaceChildren(emptyState);
+  const engines = sortCustomEngines(model.draft.customEngines);
+  if (!engines.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty-state';
+    empty.textContent = 'No custom engines yet. Add one using its HTTPS homepage and search URL template.';
+    elements['custom-engine-list'].replaceChildren(empty);
     return;
   }
-
-  const cards = customEngines.map((engine) => {
+  elements['custom-engine-list'].replaceChildren(...engines.map((engine) => {
     const card = document.createElement('article');
     card.className = 'custom-card';
-    card.append(createEngineIcon(engine));
-
     const copy = document.createElement('div');
     copy.className = 'custom-card__copy';
     const name = document.createElement('strong');
@@ -146,254 +151,204 @@ function renderCustomEngines() {
     template.textContent = engine.searchUrlTemplate;
     template.title = engine.searchUrlTemplate;
     copy.append(name, template);
-    card.append(copy);
-
     const actions = document.createElement('div');
     actions.className = 'custom-card__actions';
-    const editButton = document.createElement('button');
-    editButton.type = 'button';
-    editButton.className = 'button button--secondary';
-    editButton.textContent = 'Edit';
-    editButton.setAttribute('aria-label', `Edit ${engine.name}`);
-    editButton.addEventListener('click', () => openEditor(engine));
-
-    const deleteButton = document.createElement('button');
-    deleteButton.type = 'button';
-    deleteButton.className = 'button button--danger';
-    deleteButton.textContent = 'Delete';
-    deleteButton.setAttribute('aria-label', `Delete ${engine.name}`);
-    deleteButton.addEventListener('click', () => void removeEngine(engine));
-    actions.append(editButton, deleteButton);
-    card.append(actions);
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'button button--secondary';
+    edit.textContent = 'Edit';
+    edit.disabled = model.saving;
+    edit.setAttribute('aria-label', `Edit ${engine.name}`);
+    edit.addEventListener('click', () => openEditor(engine.id));
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'button button--danger';
+    remove.textContent = 'Delete';
+    remove.disabled = model.saving;
+    remove.setAttribute('aria-label', `Delete ${engine.name}`);
+    remove.addEventListener('click', () => {
+      model.deleteEngine(engine.id);
+      render();
+      announce(`${engine.name} removed from the draft. Cancel restores saved engines.`);
+    });
+    actions.append(edit, remove);
+    card.append(createEngineIcon(engine), copy, actions);
     return card;
-  });
-
-  elements.customEngineList.replaceChildren(...cards);
-}
-
-function renderIconPreview() {
-  const previewEngine = {
-    kind: 'custom',
-    name: elements.customName.value || 'Custom',
-    iconDataUrl: pendingIconDataUrl,
-  };
-  elements.customIconPreview.replaceWith(createEngineIcon(previewEngine, 'large-icon'));
-  elements.customIconPreview = document.querySelector('.large-icon');
-  elements.customIconPreview.id = 'custom-icon-preview';
-  elements.customIconPreview.setAttribute('aria-label', 'Custom icon preview');
-  elements.removeCustomIcon.disabled = !pendingIconDataUrl;
+  }));
 }
 
 function clearFieldErrors() {
-  const fields = [elements.customName, elements.customHomeUrl, elements.customSearchUrl];
-  fields.forEach((field) => field.removeAttribute('aria-invalid'));
-  elements.customNameError.textContent = '';
-  elements.customHomeUrlError.textContent = '';
-  elements.customSearchUrlError.textContent = '';
-  elements.customIconError.textContent = '';
-  elements.editorErrorSummary.textContent = '';
-  elements.editorErrorSummary.hidden = true;
+  Object.values(fieldIds).forEach(([fieldId, errorId]) => {
+    elements[fieldId].removeAttribute('aria-invalid');
+    elements[errorId].textContent = '';
+  });
+  elements['editor-error-summary'].hidden = true;
 }
 
 function showValidationErrors(errors) {
   clearFieldErrors();
-  const mappings = [
-    ['name', elements.customName, elements.customNameError],
-    ['homeUrl', elements.customHomeUrl, elements.customHomeUrlError],
-    ['searchUrlTemplate', elements.customSearchUrl, elements.customSearchUrlError],
-  ];
-  let firstInvalidField = null;
-
-  mappings.forEach(([key, field, errorElement]) => {
-    if (!errors[key]) {
-      return;
-    }
-
-    field.setAttribute('aria-invalid', 'true');
-    errorElement.textContent = errors[key];
-    firstInvalidField ??= field;
+  let firstInvalid;
+  Object.entries(fieldIds).forEach(([key, [fieldId, errorId]]) => {
+    if (!errors[key]) return;
+    elements[fieldId].setAttribute('aria-invalid', 'true');
+    elements[errorId].textContent = errors[key];
+    firstInvalid ??= elements[fieldId];
   });
-
-  if (errors.iconDataUrl) {
-    elements.customIconError.textContent = errors.iconDataUrl;
-  }
-
-  elements.editorErrorSummary.textContent = 'Please correct the highlighted custom-engine fields.';
-  elements.editorErrorSummary.hidden = false;
-  firstInvalidField?.focus();
+  elements['editor-error-summary'].textContent = 'Please correct the highlighted custom-engine fields.';
+  elements['editor-error-summary'].hidden = false;
+  firstInvalid?.focus();
 }
 
-function openEditor(engine = null) {
-  editingEngineId = engine?.id ?? null;
-  pendingIconDataUrl = engine?.iconDataUrl ?? null;
-  elements.editorTitle.textContent = engine ? `Edit ${engine.name}` : 'Add custom engine';
-  elements.customName.value = engine?.name ?? '';
-  elements.customHomeUrl.value = engine?.homeUrl ?? '';
-  elements.customSearchUrl.value = engine?.searchUrlTemplate ?? '';
-  elements.customIconFile.value = '';
+function renderEditor() {
+  elements['custom-engine-form'].hidden = !model.editor;
+  if (!model.editor) {
+    elements['custom-engine-form'].reset();
+    clearFieldErrors();
+    return;
+  }
+  elements['editor-title'].textContent = model.editor.id ? 'Edit custom engine' : 'Add custom engine';
+  Object.entries(fieldIds).forEach(([key, [id]]) => {
+    elements[id].value = model.editor.input[key];
+  });
+}
+
+function openEditor(id = null) {
+  if (!model.openEditor(id)) {
+    announce('Apply or discard the current engine edit before opening another.');
+    elements['custom-name'].focus();
+    return;
+  }
   clearFieldErrors();
-  renderIconPreview();
-  elements.customEngineForm.hidden = false;
-  elements.customName.focus();
-  elements.customEngineForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  renderEditor();
+  elements['custom-name'].focus();
+  elements['custom-engine-form'].scrollIntoView({ block: 'nearest' });
 }
 
 function closeEditor() {
-  editingEngineId = null;
-  pendingIconDataUrl = null;
-  elements.customEngineForm.reset();
-  clearFieldErrors();
-  elements.customEngineForm.hidden = true;
-  elements.addCustomEngine.focus();
+  model.closeEditor();
+  renderEditor();
+  changed();
+  elements['add-custom-engine'].focus();
 }
 
-async function persistPreferences(firstId, secondId) {
-  if (secondId && (!firstId || firstId === secondId)) {
-    elements.preferenceError.textContent = 'The first and second preferred engines must be different.';
-    elements.preferenceError.hidden = false;
-    return;
-  }
-
-  settings = await saveSettings({
-    ...settings,
-    firstPreferredEngineId: firstId || null,
-    secondPreferredEngineId: firstId ? (secondId || null) : null,
-  });
-  renderPreferences();
-  announce('Preferences saved');
-}
-
-async function removeEngine(engine) {
-  const confirmed = window.confirm(`Delete ${engine.name}? This cannot be undone.`);
-  if (!confirmed) {
-    return;
-  }
-
-  settings = await saveSettings(deleteCustomEngine(settings, engine.id));
-  if (editingEngineId === engine.id) {
-    closeEditor();
-  }
+function render() {
+  elements.enabled.checked = model.draft.enabled;
+  renderSites();
   renderPreferences();
   renderCustomEngines();
-  announce(`${engine.name} deleted`);
+  renderEditor();
+  updateState();
 }
 
-function loadImage(file) {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const image = new Image();
-    image.addEventListener('load', () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(image);
-    }, { once: true });
-    image.addEventListener('error', () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('The selected file could not be decoded as an image.'));
-    }, { once: true });
-    image.src = objectUrl;
-  });
+function cancelChanges() {
+  model.cancel();
+  clearSaveError();
+  render();
+  announce('Unsaved changes discarded. Latest saved settings restored.');
 }
 
-async function processIconFile(file) {
-  if (!SAFE_ICON_TYPES.has(file.type)) {
-    throw new Error('Choose a PNG, JPEG, WebP, or ICO image.');
-  }
-
-  if (file.size > MAX_ICON_FILE_SIZE) {
-    throw new Error('The icon file must be 2 MB or smaller.');
-  }
-
-  const image = await loadImage(file);
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-  const targetSize = 128;
-  const scale = Math.min(targetSize / image.naturalWidth, targetSize / image.naturalHeight);
-  const width = Math.max(1, Math.round(image.naturalWidth * scale));
-  const height = Math.max(1, Math.round(image.naturalHeight * scale));
-  const x = Math.round((targetSize - width) / 2);
-  const y = Math.round((targetSize - height) / 2);
-
-  canvas.width = targetSize;
-  canvas.height = targetSize;
-  context.clearRect(0, 0, targetSize, targetSize);
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = 'high';
-  context.drawImage(image, x, y, width, height);
-  return canvas.toDataURL('image/png');
-}
-
-elements.firstPreference.addEventListener('change', () => {
-  const firstId = elements.firstPreference.value;
-  const secondId = firstId && elements.secondPreference.value !== firstId
-    ? elements.secondPreference.value
-    : '';
-  void persistPreferences(firstId, secondId);
-});
-
-elements.secondPreference.addEventListener('change', () => {
-  void persistPreferences(elements.firstPreference.value, elements.secondPreference.value);
-});
-
-elements.continueWithoutPreference.addEventListener('click', () => {
-  void persistPreferences('', '');
-});
-
-elements.addCustomEngine.addEventListener('click', () => openEditor());
-elements.cancelCustomEngine.addEventListener('click', closeEditor);
-elements.cancelCustomEngineSecondary.addEventListener('click', closeEditor);
-elements.customName.addEventListener('input', renderIconPreview);
-
-elements.removeCustomIcon.addEventListener('click', () => {
-  pendingIconDataUrl = null;
-  elements.customIconFile.value = '';
-  elements.customIconError.textContent = '';
-  renderIconPreview();
-});
-
-elements.customIconFile.addEventListener('change', async () => {
-  const [file] = elements.customIconFile.files;
-  if (!file) {
-    return;
-  }
-
-  elements.customIconError.textContent = '';
+async function saveChanges() {
+  clearSaveError();
+  announce('');
+  const promise = model.save();
+  // Lock controls until storage settles; edits during an asynchronous write must not be lost.
+  const disabledState = new Map([...document.querySelectorAll('input, select, button')]
+    .map((control) => [control, control.disabled]));
+  disabledState.forEach((_, control) => { control.disabled = true; });
+  updateState();
   try {
-    pendingIconDataUrl = await processIconFile(file);
-    renderIconPreview();
+    const result = await promise;
+    if (result.saved) {
+      render();
+      await renderStorageNotice();
+      announce('Changes saved. Reload open search-engine pages to apply global or site changes.');
+    } else if (result.editorErrors) {
+      showValidationErrors(result.editorErrors);
+    } else if (result.errors) {
+      elements['save-error'].textContent = result.errors.join(' ');
+      elements['save-error'].hidden = false;
+    }
   } catch (error) {
-    pendingIconDataUrl = null;
-    elements.customIconFile.value = '';
-    elements.customIconError.textContent = error.message;
-    renderIconPreview();
+    elements['save-error'].textContent = `Changes could not be saved. ${error.message || 'Please try again.'}`;
+    elements['save-error'].hidden = false;
+  } finally {
+    disabledState.forEach((disabled, control) => { control.disabled = disabled; });
+    elements['second-preference'].disabled = !model.draft.firstPreferredEngineId;
+    updateState();
+    document.querySelector('[aria-invalid="true"]')?.focus();
   }
-});
+}
 
-elements.customEngineForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const result = upsertCustomEngine(
-    settings,
-    {
-      name: elements.customName.value,
-      homeUrl: elements.customHomeUrl.value,
-      searchUrlTemplate: elements.customSearchUrl.value,
-      iconDataUrl: pendingIconDataUrl,
-    },
-    editingEngineId,
-  );
+function initializeEvents() {
+  elements.enabled.addEventListener('change', () => {
+    model.setEnabled(elements.enabled.checked);
+    changed();
+  });
+  elements['first-preference'].addEventListener('change', () => {
+    model.setPreferences(elements['first-preference'].value, elements['second-preference'].value);
+    renderPreferences();
+    changed();
+  });
+  elements['second-preference'].addEventListener('change', () => {
+    model.setPreferences(elements['first-preference'].value, elements['second-preference'].value);
+    renderPreferences();
+    changed();
+  });
+  elements['continue-without-preference'].addEventListener('click', () => {
+    model.setPreferences(null, null);
+    renderPreferences();
+    changed();
+  });
+  elements['add-custom-engine'].addEventListener('click', () => openEditor());
+  elements['cancel-custom-engine'].addEventListener('click', closeEditor);
+  elements['cancel-custom-engine-secondary'].addEventListener('click', closeEditor);
+  Object.entries(fieldIds).forEach(([key, [id]]) => {
+    elements[id].addEventListener('input', () => {
+      model.editField(key, elements[id].value);
+      clearFieldErrors();
+      changed();
+    });
+  });
+  elements['custom-engine-form'].addEventListener('submit', (event) => {
+    event.preventDefault();
+    const result = model.applyEditor();
+    if (!result) return;
+    if (!result.validation.valid) {
+      showValidationErrors(result.validation.errors);
+      return;
+    }
+    render();
+    announce(`${result.engine.name} applied to the draft. Use Save changes to keep it.`);
+    elements['add-custom-engine'].focus();
+  });
+  elements['save-changes'].addEventListener('click', () => void saveChanges());
+  elements['cancel-changes'].addEventListener('click', cancelChanges);
+  elements['reload-saved-settings'].addEventListener('click', cancelChanges);
+  window.addEventListener('beforeunload', (event) => {
+    if (!model.dirty) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+  window.addEventListener('pagehide', () => removeSettingsListener?.(), { once: true });
+}
 
-  if (!result.validation.valid) {
-    showValidationErrors(result.validation.errors);
-    return;
-  }
-
-  settings = await saveSettings(result.settings);
-  const savedName = result.engine.name;
-  closeEditor();
-  renderPreferences();
-  renderCustomEngines();
-  announce(`${savedName} saved`);
-});
-
-renderBuiltInCatalog();
-renderPreferences();
-renderCustomEngines();
+try {
+  model = new OptionsDraft(await loadSettings(), saveSettings);
+  initializeEvents();
+  renderBuiltInCatalog();
+  render();
+  removeSettingsListener = listenForSettingsChanges((settings) => {
+    const wasDirty = model.dirty;
+    model.acceptExternal(settings);
+    if (!wasDirty) render();
+    else updateState();
+  });
+  // Close the load/listen race without overwriting a draft the user already started.
+  model.acceptExternal(await loadSettings());
+  render();
+  await renderStorageNotice();
+} catch {
+  elements['save-error'].textContent = 'Settings could not be loaded. Reload this page to try again.';
+  elements['save-error'].hidden = false;
+  document.querySelectorAll('input, select, button').forEach((control) => { control.disabled = true; });
+}

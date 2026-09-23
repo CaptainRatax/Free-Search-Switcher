@@ -1,6 +1,6 @@
 # Free Search Switcher
 
-Free Search Switcher is a cross-browser extension for switching between preferred and custom search engines while preserving the current submitted search query. It uses one Vanilla JavaScript WXT codebase and produces Manifest V3 builds for Chromium browsers, Firefox desktop, and Firefox for Android.
+Free Search Switcher **2.0.0** is a Firefox-first extension for switching between preferred and custom search engines while preserving the current submitted search query. Firefox Desktop is the primary target, Firefox for Android remains fully supported, and Chromium is the secondary compatibility target. One Vanilla JavaScript WXT codebase produces both Manifest V3 packages.
 
 Read the [official documentation](https://freesearchswitcher-docs.captainratax.com/) for installation, usage, settings, and privacy information.
 
@@ -8,7 +8,15 @@ Read the [official documentation](https://freesearchswitcher-docs.captainratax.c
 
 ### Settings and onboarding
 
-![Free Search Switcher settings page](docs/screenshots/settings.png)
+![Free Search Switcher 2.0.0 Settings with global and site switches, preferred engines, custom destinations, and Save changes and Cancel](docs/screenshots/settings.png)
+
+*The full Settings page keeps changes in a draft until Save changes. Cancel restores the saved configuration.*
+
+### Desktop popup
+
+![Free Search Switcher 2.0.0 popup with the global switch, Ecosia and Google preferences, and Open Settings](docs/assets/screenshots/popup.png)
+
+*Popup changes save immediately. A supported page offers Reload page when its applied state needs to change.*
 
 ### Search-page controls
 
@@ -22,21 +30,24 @@ Read the [official documentation](https://freesearchswitcher-docs.captainratax.c
 - Preserves the current search mode (Images, Videos, News, Maps, Shopping) when the destination engine has a verified equivalent, and otherwise falls back to a normal web search. See "Search mode preservation".
 - Supports zero, one, or two preferred engines with predictable quick-switch behavior.
 - Provides a complete ordered engine menu with accessible keyboard operation.
-- Supports locally stored custom engines as navigation targets.
-- Accepts local PNG, JPEG, WebP, and ICO custom icons, then normalizes them to a 128 × 128 PNG Data URL in the browser.
-- Uses a closed Shadow DOM, locally bundled icons, and safe DOM construction.
+- Supports custom engines as navigation targets with optional HTTPS icon URLs and first-letter fallback.
+- Offers global and per-site injection switches without removing search destinations.
+- Provides a desktop popup for immediate global/preference changes and page-load-aware reload feedback.
+- Keeps full Settings edits in a draft until Save changes; Cancel restores persisted configuration.
+- Uses browser-native configuration sync where supported, with no developer-operated sync service.
+- Uses a closed Shadow DOM, bundled built-in icons, and safe DOM construction.
 - Recovers when a supported site replaces or changes its search bar.
-- Updates open supported pages when preferences or custom engines change.
+- Updates an already-running UI when preferences or custom engines change; global/site eligibility applies on page load.
 - Supports light, dark, forced-colors, and responsive layouts.
-- Contains no analytics, telemetry, cloud sync, remote code, or remotely hosted runtime assets.
+- Contains no analytics, telemetry, tracking, accounts, developer servers, remote executable code, query logs, or browsing-history collection.
 
 ## Supported browsers
 
-- Chrome and Chromium-based browsers, including Brave
-- Firefox desktop 140 or newer with Manifest V3
-- Firefox for Android 142 or newer
+- **Firefox Desktop 140 or newer:** primary target, with the desktop popup and full Settings.
+- **Firefox for Android 142 or newer:** fully supported using the same Firefox package, touch layouts, and full Settings. Its action provides simple Settings access.
+- **Chrome and Chromium-based browsers, including Brave:** secondary compatibility target.
 
-The automated live integration suites were run against Brave 152 and Firefox 155 on Windows. Mobile layouts were inspected with Android-sized touch viewports and a Firefox Android user agent, and the packaged Firefox Manifest V3 build passed a mobile-layout WebDriver smoke test. A final physical-device Firefox for Android check is still recommended before enabling broad AMO distribution. Both Firefox variants use the same packaged build.
+Previous-release automated live integration suites were run against Brave 152 and Firefox 155 on Windows. Mobile layouts were inspected with Android-sized touch viewports and a Firefox Android user agent, and the packaged Firefox Manifest V3 build passed a mobile-layout WebDriver smoke test. A final physical-device Firefox for Android check is still recommended before enabling broad AMO distribution. Both Firefox variants use the same packaged build.
 
 ## Supported built-in search engines
 
@@ -121,7 +132,7 @@ The complete menu starts with the first and second preferences when configured, 
 
 ## Custom search engines
 
-Each custom engine contains a stable generated ID, display name, HTTPS homepage, HTTPS search template, optional locally uploaded icon, and creation order.
+Each custom engine contains a stable generated ID, display name, HTTPS homepage, HTTPS search template, optional HTTPS `iconUrl` string, and creation order.
 
 A valid search template must contain exactly one literal `{query}` placeholder after the URL hostname. For example:
 
@@ -129,26 +140,33 @@ A valid search template must contain exactly one literal `{query}` placeholder a
 https://example.com/search?q={query}
 ```
 
-The extension rejects invalid URLs, non-HTTPS navigation, credentials in URLs, missing or repeated placeholders, placeholders in the hostname, unsafe icon data, and dangerous schemes such as `javascript:`, `data:`, `file:`, and browser-internal URLs.
+The extension rejects invalid URLs, non-HTTPS navigation, credentials in URLs, missing or repeated placeholders, placeholders in the hostname, invalid icon URLs, and dangerous schemes such as `javascript:`, `data:`, `file:`, and browser-internal URLs.
 
-Custom icons are processed entirely in the settings page. The original file is not uploaded or fetched remotely. Files must be PNG, JPEG, WebP, or ICO and no larger than 2 MB. The browser resizes the image onto a transparent 128 × 128 canvas and stores the resulting PNG Data URL in extension-local storage. Engines without an icon use a first-letter fallback.
+Enter an optional **Icon URL**, such as `https://example.com/icon.png`. Validation checks HTTPS URL syntax without fetching an image. Only the URL string is stored; there is no upload, canvas conversion, or image proxy. When an icon is displayed, the browser may contact its external image host. Missing, invalid, or failed images fall back to the engine's first letter without breaking navigation. Custom additions, edits, and deletions remain in the Settings draft until the page-level **Save changes**.
 
 Custom engines are navigation targets only. Their websites do not receive injected controls or host access. Deleting a selected custom engine clears the affected preference slots according to the preference invariants.
 
+## Settings, sync, and upgrades
+
+The desktop popup saves global enabled state and preferred engines immediately. It compares the supported page's state at load with saved settings to offer **Reload page** only when required. Toggle off then back on before reloading and the warning clears. Unsupported websites do not show it.
+
+Full Settings keeps a baseline and a draft. Global/site switches, preferences, custom add/edit/delete, and icon URLs persist together only on **Save changes**. **Cancel** restores saved values. Clean Settings tabs refresh on external changes; dirty tabs keep edits and show a warning with a reset action. Unsaved drafts trigger a normal browser leave-page warning where supported.
+
+All seven site switches and the global switch default on. They control injection at page load; saving them does not create/remove controls on an existing page. Reload to apply them. Disabling Google injection still leaves Google as a destination and preferred-engine choice. Custom sites never gain injected controls.
+
+Schema version 2 uses `storage.sync` for configuration only: switches, preferred IDs, ordered custom definitions and icon URL strings, and schema metadata. Firefox Desktop can use Mozilla sync; Chromium can use its browser's supported service. These ecosystems remain separate. Firefox for Android does not synchronize extension data with Desktop Firefox through Mozilla accounts. See [MDN storage.sync](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/sync). Local fallback keeps settings usable when sync storage is unavailable.
+
+Migration reads the legacy local record, preserves preferences/custom engines/order, defaults new switches to enabled, and drops old uploaded icon data while retaining its engine. Existing valid v2 configuration takes precedence. Legacy cleanup follows a successful migration; the process is idempotent.
+
 ## Privacy
 
-See the complete [Privacy Policy](PRIVACY.md) for details about local processing, storage, query transfer, permissions, and user control.
+See the complete [Privacy Policy](PRIVACY.md), effective September 18, 2026.
 
-Free Search Switcher stores the following data in `storage.local`:
+The developer receives no settings or searches and operates no sync server or icon proxy. Browser providers may synchronize configuration through the user's browser account; external icon hosts may receive browser image requests. Only a user-selected destination receives the submitted query through direct HTTPS navigation.
 
-- Storage schema version
-- First and second preferred engine IDs
-- Custom engine definitions, creation order, and processed custom icons
-- A local marker recording that first-install onboarding has already opened
+The onboarding marker `freeSearchSwitcherOnboardingOpened` remains in `storage.local`. Queries, current URLs, history, modes, popup state, reload warnings, and Options drafts are never synchronized. Queries and current URLs are never written to either storage area or logs. There are no analytics, telemetry, tracking, ads, accounts, or developer cloud services.
 
-No settings, custom icons, or queries are sent to the extension developer. Settings and custom icons remain local. A submitted query is sent only in the HTTPS navigation URL of the search engine the user explicitly chooses, as required to perform the switch. There are no external databases, accounts, analytics, telemetry, tracking, or cloud APIs.
-
-The injected UI uses a closed Shadow DOM. This isolates it from page styles and prevents supported-site scripts from reading custom engine names, preferences, or stored icon data from the rendered control tree.
+The injected UI uses a closed Shadow DOM to isolate its controls and styles from the search page.
 
 ## Permissions
 
@@ -156,7 +174,7 @@ Production builds request only the `storage` API permission.
 
 | Permission or access | Why it is required |
 | --- | --- |
-| `storage` | Saves preferences, custom engines, processed icons, the schema version, and the first-install marker locally. It also delivers change events to open supported pages. |
+| `storage` | Saves configuration with browser-native sync, supports migration/local fallback, and retains the onboarding marker locally. Change events update active interfaces. |
 | Static content-script access to the seven HTTPS origins below | Detects the supported engine, locates its search bar, and injects the switching controls. |
 | Web-accessible bundled engine PNGs on those same seven origins | Lets the closed content UI display local engine icons without hotlinking or broad host access. |
 | Firefox `searchTerms` data-collection declaration | Tells Firefox that a submitted query is sent directly to the search engine explicitly selected by the user. The developer never receives it, and it is not retained by the extension. |
@@ -179,9 +197,9 @@ Production manifests do not request `<all_urls>`, arbitrary HTTP/HTTPS access, c
 
 - Node.js 22.13 or newer
 - npm
-- A Chrome-family browser for Chromium development or Brave integration checks
 - Firefox for Firefox development and temporary installation
 - For Android development: Firefox for Android 142 or newer, an Android device with USB debugging enabled, and Android SDK Platform Tools (`adb`)
+- A Chrome-family browser for Chromium development or Brave integration checks
 
 ## Install development dependencies
 
@@ -195,11 +213,14 @@ The lockfile pins WXT 0.21.4 and the small JavaScript-only development toolchain
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Start WXT development for Chrome/Chromium Manifest V3. |
 | `npm run dev:firefox` | Start WXT development for Firefox Manifest V3. |
 | `npm run dev:firefox-android` | Build Firefox MV3 and install/run it on a connected Firefox for Android device through `web-ext`. |
+| `npm run dev` | Start WXT development for Chrome/Chromium Manifest V3. |
 | `npm run lint` | Run ESLint over JavaScript source and tests. |
-| `npm test` | Run the pure-logic Vitest suite. |
+| `npm test` | Run Vitest unit and DOM behavior tests. |
+| `npm run test:v2` | Run the packaged Chromium extension against synthetic supported pages for deterministic v2 UI flows. |
+| `npm run test:popup:firefox` | Click the actual Firefox toolbar action and check native popup sizing in light/dark modes. |
+| `npm run test:popup:chromium` | Open the native Brave/Chromium action panel and check sizing, reload warnings, and reachable controls. |
 | `npm run test:integration` | Launch the Chromium production build in Brave and run live browser checks. |
 | `npm run test:mobile` | Run the live Brave suite with Android-sized touch viewports and a Firefox Android user agent. |
 | `npm run test:firefox` | Temporarily install the packaged MV3 build in Firefox and run a WebDriver smoke test. |
@@ -208,25 +229,25 @@ The lockfile pins WXT 0.21.4 and the small JavaScript-only development toolchain
 
 The integration command expects Brave at its standard Windows installation path. Set `FSS_BROWSER_PATH` to another Chromium-family executable when needed. Set `FSS_CAPTURE_SCREENSHOTS=1` to refresh the screenshots under `docs/screenshots/`.
 
-The Firefox smoke command expects `FSS_FIREFOX_PATH` and `FSS_GECKODRIVER_PATH` to point to a Firefox executable and geckodriver. It tests the already packaged `.output/free-search-switcher-1.0.0-firefox.zip`, so run `npm run zip:firefox` first after source changes.
+The Firefox smoke command expects `FSS_FIREFOX_PATH` and `FSS_GECKODRIVER_PATH` to point to Firefox and geckodriver. Its default `.output/free-search-switcher-<package version>-firefox.zip` path derives from `package.json`; run `npm run zip:firefox` first after changes.
 
 ## Build and package
 
 ```sh
-# Chromium Manifest V3
-npm run build
-npm run zip
-
 # Firefox Manifest V3
 npm run build:firefox
 npm run zip:firefox
+
+# Chromium Manifest V3
+npm run build
+npm run zip
 ```
 
 Production directories:
 
 ```text
-.output/chrome-mv3/
 .output/firefox-mv3/
+.output/chrome-mv3/
 ```
 
 WXT writes packaged ZIP files under `.output/`. Firefox packaging also creates a source ZIP for review/signing workflows.
@@ -238,7 +259,7 @@ WXT writes packaged ZIP files under `.output/`. Firefox packaging also creates a
 3. Enable **Developer mode**.
 4. Choose **Load unpacked**.
 5. Select `.output/chrome-mv3/`.
-6. The settings page opens once on first install. Click the toolbar icon later to reopen it.
+6. The settings page opens once on first install. Use **Open Settings** in the desktop toolbar popup to reopen it.
 
 ## Run or temporarily install the Firefox build
 
@@ -271,7 +292,7 @@ Firefox for Android uses the same Manifest V3 ZIP as desktop Firefox. The manife
 
    The script targets the release package `org.mozilla.firefox`. If a different Firefox channel is installed, run the equivalent `web-ext run` command with that channel's package name.
 4. Approve the temporary installation and the declared access on the device.
-5. Open a supported search engine. The extension action is available from Firefox's browser menu under **Add-ons**; selecting Free Search Switcher opens its settings page.
+5. Open a supported search engine. The extension action is available from Firefox's browser menu under **Add-ons**; selecting Free Search Switcher provides access to the full Settings page.
 
 Temporary Android installation requires a connected device. AMO-signed builds can be installed normally without the development connection.
 
@@ -279,16 +300,18 @@ Temporary Android installation requires a connected device. AMO-signed builds ca
 
 ```text
 entrypoints/
-  background.js          First-install onboarding and toolbar action
+  background.js          Local first-install onboarding
   content.js             Supported-origin content-script bootstrap
-  options/               Shared onboarding/settings HTML, CSS, and JavaScript
+  popup/                 Immediate desktop controls and page-load reload feedback
+  options/               Full draft-based Settings, Save/Cancel, custom URL editor
 utils/
   engines.js             Canonical metadata, ordering, quick-target rules, and per-engine mode capability
   modes.js               Canonical normalized search-mode identifiers
   navigation.js          Submitted-query extraction and encoded, mode-aware target URLs
-  settings.js            Storage schema and preference/custom invariants
-  storage.js             Cross-browser storage API wrapper and change listener
-  validation.js          HTTPS, template, and icon-data validation
+  settings.js            Schema v2, enabled/site defaults, preference/custom invariants
+  storage.js             Normalized browser storage wrapper
+  settings-storage.js    Sync chunks, quota checks, migration/fallback, change events
+  validation.js          HTTPS, template, and optional icon URL validation
   adapters/              One semantic DOM adapter per built-in engine, including mode detection
 ui/
   search-switcher-ui.js  Closed-Shadow-DOM controls and dynamic recovery
@@ -296,17 +319,18 @@ public/
   engine-icons/          Locally bundled runtime engine icons
   icons/                 Extension icon sizes
 assets/                  Replaceable source icon assets
-tests/                   Pure JavaScript Vitest coverage
+tests/                   JavaScript unit and DOM behavior coverage
 scripts/
+  v2-smoke.js            Deterministic packaged Chromium v2 UI flows
   integration-smoke.js   Live Brave production-build integration suite
   mobile-integration-smoke.js  Android-layout Brave suite launcher
   firefox-smoke.js       Packaged Firefox MV3 WebDriver smoke suite
   firefox-mobile-smoke.js  Mobile-layout Firefox smoke launcher
 ```
 
-The background entrypoint opens settings only for an `install` event that has not already recorded its local first-open marker. Clicking the desktop toolbar action calls `runtime.openOptionsPage()` and needs no `tabs` permission. On Firefox for Android, the same action is exposed through the browser's **Add-ons** menu.
+The background opens Settings on first installation using a local onboarding marker. The desktop toolbar action opens a WXT popup whose **Open Settings** button uses `runtime.openOptionsPage()`. On Android the action provides simple full-Settings access. No broad `tabs` permission is required.
 
-The content entrypoint exists only on the seven supported origins. It selects an adapter by exact HTTPS hostname, loads normalized local settings, creates one idempotent closed-shadow UI host, and subscribes to storage changes. It uses a throttled observer with an O(1) fast path, presentation-change checks, URL monitoring, and a resize observer to recover when a search engine replaces, hides, moves, or re-renders its search bar without continuously rebuilding the UI.
+The content entrypoint exists only on seven supported origins. It detects the adapter and loads normalized settings, then takes a page-load snapshot of the global and current-site switches. Only eligible pages start `SearchSwitcherUi`; later eligibility changes require reload. Runtime messaging lets the popup inspect that snapshot even when UI is disabled. Storage events still update preferences and custom destinations in a running UI. Existing DOM/URL/viewport observers continue recovering from site layout changes. See [architecture](docs/development/architecture.md) for storage chunks, quota limits, migration, and fallback details.
 
 The control is positioned immediately adjacent to the compact visual search-bar container selected by the adapter. Desktop placement chooses the right or left side when space exists. At phone widths, the UI uses 48-pixel minimum touch targets and reserves engine-safe space so native input, microphone, image, submit, tab, and filter controls remain reachable. Ecosia and Google results use inert, non-form inline spacers between the editable query field and native trailing actions; Startpage results and the Google homepage use stable outer flow containers; Qwant results use the free top-header gap between its logo and menu. Expanded menus flip above or below and clamp to the current `VisualViewport`, including compact portrait and landscape layouts.
 
@@ -343,12 +367,20 @@ Mode detection reads the current URL only (query parameters or path segments; se
 
 ## Testing status
 
+For the 2.0.0 implementation, **448 automated tests passed**, along with ESLint, Firefox and Chromium builds/ZIPs, and Firefox package validation (zero errors or warnings). The deterministic v2 UI smoke and packaged Firefox desktop/mobile-layout smokes passed. The live Brave desktop suite completed with explicitly skipped anti-bot-blocked cases. The live mobile suite could not finish because Google Maps navigation timed out; Startpage, Qwant, and Google also blocked some automated requests. Physical Android and real browser-account synchronization between devices have not been tested in this workspace.
+
+The v2 settings/storage tests cover defensive normalization, v1 migration without losing custom engines, quota-aware sync, fallback recovery, and incomplete sync deliveries. Options, popup, and content-session tests cover draft transactions, external changes, immediate popup saves, reload warnings, and page-load eligibility.
+
 The automated suite covers quick-target selection, zero/one/two preference scenarios, URL construction and Unicode encoding, menu order and duplicate removal, Google ordering, custom-engine validation, selected-custom deletion, Startpage POST extraction, typed-versus-submitted semantics, hidden mount candidates, and search-mode preservation: `tests/adapters.test.js` covers per-engine mode detection from a source URL, `tests/navigation.test.js` covers end-to-end mode-aware navigation (including a thrown-detection-error safety check and a client-side/SPA mode change), and `tests/modes.test.js` exhaustively covers destination construction and homepage fallback for every built-in engine and mode, explicit assertions for the confirmed compatibility matrix, unknown/ambiguous modes, custom-engine fallback, single-pass encoding for both query-string and path-style mode templates, and a full source-to-destination round trip across every built-in engine pair for every mode that engine can actually be in.
+
+The `test:v2` suite uses the real packaged Chromium extension with synthetic supported pages, avoiding search-provider network dependencies. It covers popup persistence/reload state, Options drafts and external changes, the unsaved-changes warning, custom icon URLs, content eligibility, and simulated Android popup routing. Migration is covered by the settings/storage unit tests. Physical Android remains a separate check.
+
+The `test:popup:firefox` and `test:popup:chromium` suites additionally exercise native browser-action panels, because opening `popup.html` as an ordinary tab does not test automatic panel sizing. They check readable width and overflow in light/dark modes; the Chromium suite also checks resizing and Settings access when the reload warning appears. Both native panel suites passed after fixing the collapsed popup width. Screenshots are saved under `.output/validation/`.
 
 The live Brave production-build suites exercise:
 
 - First-install onboarding and restart persistence
-- Settings add, edit, delete, validation, preference updates, and local icon processing
+- Settings drafts, explicit Save, custom add/edit/delete, preferences, and HTTPS icon URLs
 - No-, one-, and two-preference UI states
 - All seven homepages and all seven results flows in the required engine order
 - Homepage navigation without an empty search
@@ -364,18 +396,18 @@ The Firefox packaged-build smoke suites exercise:
 
 - Temporary installation of the generated Manifest V3 ZIP
 - First-install onboarding in an extension-owned tab
-- Extension-local preference storage
+- A v2 configuration fixture written to the browser's sync storage
 - Closed-shadow control injection on Bing results and the Bing homepage
 - Unicode submitted-query transfer to Google on desktop and Ecosia in the mobile-layout run
 - Rejection of typed-but-unsubmitted homepage text
 - Absence of controls on an unrelated origin
 - Search-mode preservation from Bing Images results to the platform's preferred engine (Google on desktop, confirmed by the `udm=2` Images parameter; Ecosia in the mobile-layout run, confirmed by the `/images` path)
 
-Desktop live-page inspection was completed on August 17, 2026. Android-style live inspection was repeated on August 18–19, 2026 at 390 × 844 and 393 × 852 with touch emulation, JavaScript enabled, and a Firefox Android user agent. The final mobile Brave suite loaded and passed valid homepage and results layouts for Ecosia, Startpage, DuckDuckGo, Bing, Brave, and Google. Qwant's homepage passed, while its repeated result request triggered a DataDome challenge; its result header position was separately validated against the rendered underlying layout. Additional high-frequency inspection sessions sometimes triggered Ecosia Cloudflare protection and Google's `/sorry` response. The suite records such blocks explicitly rather than treating them as successful page checks.
+For the previous release, desktop live-page inspection was completed on August 17, 2026. Android-style live inspection was repeated on August 18–19, 2026 at 390 × 844 and 393 × 852 with touch emulation, JavaScript enabled, and a Firefox Android user agent. The final mobile Brave suite loaded and passed valid homepage and results layouts for Ecosia, Startpage, DuckDuckGo, Bing, Brave, and Google. Qwant's homepage passed, while its repeated result request triggered a DataDome challenge; its result header position was separately validated against the rendered underlying layout. Additional high-frequency inspection sessions sometimes triggered Ecosia Cloudflare protection and Google's `/sorry` response. The suite records such blocks explicitly rather than treating them as successful page checks.
 
-Desktop live-page inspection for search-mode preservation (v1.0.0) was completed on September 4, 2026, using the same JavaScript-enabled Playwright/Brave method: every URL in the mode compatibility matrix above was opened directly with a fresh, referrer-less navigation, and the switcher control's mount points were separately re-verified on every one of those pages. Ecosia's Images/Videos/News verticals initially returned a Cloudflare interstitial on every fully automated attempt (see the compatibility matrix footnotes for the four independent blocked methods); a follow-up session, kept open for manual verification if needed, passed the interstitial without requiring intervention and confirmed all three verticals, Unicode round-tripping, and mount-point compatibility.
+Previous-release desktop live-page inspection for search-mode preservation was completed on September 4, 2026, using the same JavaScript-enabled Playwright/Brave method: every URL in the mode compatibility matrix above was opened directly with a fresh, referrer-less navigation, and the switcher control's mount points were separately re-verified on every one of those pages. Ecosia's Images/Videos/News verticals initially returned a Cloudflare interstitial on every fully automated attempt (see the compatibility matrix footnotes for the four independent blocked methods); a follow-up session, kept open for manual verification if needed, passed the interstitial without requiring intervention and confirmed all three verticals, Unicode round-tripping, and mount-point compatibility.
 
-Both production build targets and generated manifests are checked in the release workflow. Packaged Firefox 155 desktop and mobile-layout runtime smokes, including the new mode-preservation check, passed on September 4, 2026. No physical Android device or emulator was available in this workspace, so a final release-Firefox-for-Android pass remains required to verify real Fenix browser chrome, address-bar collapse, rotation, soft-keyboard behavior, and TalkBack.
+Both production build targets and generated manifests are checked in the release workflow. Historical packaged Firefox 155 desktop and mobile-layout smokes, including mode preservation, passed on September 4, 2026; this is a prior-release record, not evidence of a v2 run. No physical Android device or emulator was available in this workspace, so a final release-Firefox-for-Android pass remains required to verify real Fenix browser chrome, address-bar collapse, rotation, soft-keyboard behavior, and TalkBack.
 
 ## Known limitations
 
@@ -407,7 +439,7 @@ If controls stop appearing on one engine:
 
 The replaceable master is `assets/icon-source.png`. Replace it with another square source asset, then regenerate `public/icons/icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-96.png`, and `icon-128.png`. Keep all manifest paths unchanged unless you also update `wxt.config.js`.
 
-The extension-owned interface currently follows the icon palette: mint `#d7feea`, sage `#719880`, and the `#5982c8` to `#6bc1ed` blue gradient. Contrast-safe derived shades are used for normal-size text. If the icon changes substantially, update the light/dark tokens in `entrypoints/options/style.css` and the isolated control tokens in `ui/search-switcher-ui.js` together.
+The extension-owned interface currently follows the icon palette: mint `#d7feea`, sage `#719880`, and the `#5982c8` to `#6bc1ed` blue gradient. Contrast-safe derived shades are used for normal-size text. If the icon changes substantially, update the light/dark tokens in `entrypoints/options/style.css`, the popup styles, and the isolated control tokens in `ui/search-switcher-ui.js` together.
 
 Built-in source favicons are retained under `assets/engine-icons-source/` and normalized runtime copies live under `public/engine-icons/`. Product names and marks belong to their respective owners and are used only to identify navigation destinations.
 

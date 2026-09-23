@@ -1,11 +1,17 @@
 import { BUILT_IN_ENGINES, getEngineById, sortCustomEngines } from './engines.js';
-import { validateCustomEngine } from './validation.js';
+import { isSafeIconUrl, validateCustomEngine } from './validation.js';
 
 export const STORAGE_KEY = 'freeSearchSwitcherSettings';
-export const STORAGE_SCHEMA_VERSION = 1;
+export const STORAGE_SCHEMA_VERSION = 2;
+
+export const DEFAULT_SITE_ENABLED = Object.freeze(Object.fromEntries(
+  BUILT_IN_ENGINES.map((engine) => [engine.id, true]),
+));
 
 export const DEFAULT_SETTINGS = Object.freeze({
   schemaVersion: STORAGE_SCHEMA_VERSION,
+  enabled: true,
+  siteEnabled: DEFAULT_SITE_ENABLED,
   firstPreferredEngineId: null,
   secondPreferredEngineId: null,
   customEngines: Object.freeze([]),
@@ -29,21 +35,28 @@ function normalizeCustomEngines(customEngines) {
       return;
     }
 
-    const validation = validateCustomEngine(engine);
+    // An unavailable or legacy icon must never discard a valid destination.
+    const iconUrl = typeof engine.iconUrl === 'string' ? engine.iconUrl.trim() : null;
+    const validation = validateCustomEngine({
+      ...engine,
+      iconUrl: isSafeIconUrl(iconUrl) ? iconUrl : null,
+    });
     if (!validation.valid) {
       return;
     }
 
+    const rawOrder = engine.creationOrder;
+    const creationOrder = typeof rawOrder === 'number'
+      ? rawOrder
+      : typeof rawOrder === 'string' && rawOrder.trim() ? Number(rawOrder) : index;
     seen.add(engine.id);
     normalized.push({
       id: engine.id,
       name: validation.value.name,
       homeUrl: validation.value.homeUrl,
       searchUrlTemplate: validation.value.searchUrlTemplate,
-      iconDataUrl: validation.value.iconDataUrl,
-      creationOrder: Number.isFinite(Number(engine.creationOrder))
-        ? Number(engine.creationOrder)
-        : index,
+      iconUrl: validation.value.iconUrl,
+      creationOrder: Number.isFinite(creationOrder) ? creationOrder : index,
       kind: 'custom',
     });
   });
@@ -52,6 +65,7 @@ function normalizeCustomEngines(customEngines) {
 }
 
 export function normalizeSettings(rawSettings = {}) {
+  rawSettings = rawSettings && typeof rawSettings === 'object' ? rawSettings : {};
   const customEngines = normalizeCustomEngines(rawSettings.customEngines);
   const validEngineIds = new Set([
     ...BUILT_IN_ENGINES.map((engine) => engine.id),
@@ -74,6 +88,11 @@ export function normalizeSettings(rawSettings = {}) {
 
   return {
     schemaVersion: STORAGE_SCHEMA_VERSION,
+    enabled: typeof rawSettings.enabled === 'boolean' ? rawSettings.enabled : true,
+    siteEnabled: Object.fromEntries(BUILT_IN_ENGINES.map(({ id }) => [
+      id,
+      typeof rawSettings.siteEnabled?.[id] === 'boolean' ? rawSettings.siteEnabled[id] : true,
+    ])),
     firstPreferredEngineId,
     secondPreferredEngineId,
     customEngines,
@@ -130,4 +149,3 @@ export function upsertCustomEngine(settings, input, existingId = null) {
 export function hasEngine(settings, engineId) {
   return Boolean(getEngineById(engineId, normalizeSettings(settings).customEngines));
 }
-

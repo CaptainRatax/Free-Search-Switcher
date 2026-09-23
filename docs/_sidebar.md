@@ -11,8 +11,8 @@
   - [Search engine reference](/configuration/search-engines.md)
 
 - Your browser
-  - [Chromium browsers](/browsers/chromium.md)
   - [Firefox](/browsers/firefox.md)
+  - [Chromium browsers](/browsers/chromium.md)
 
 - Privacy and permissions
   - [Permissions](/privacy/permissions.md)

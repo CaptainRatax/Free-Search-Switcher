@@ -13,7 +13,7 @@ const customEngine = {
   name: 'Example Search',
   homeUrl: 'https://example.com/',
   searchUrlTemplate: 'https://example.com/search?q={query}',
-  iconDataUrl: null,
+  iconUrl: null,
   creationOrder: 0,
   kind: 'custom',
 };
@@ -94,4 +94,3 @@ describe('engine menu ordering', () => {
     expect(menu[googleIndex].engine.kind).toBe('built-in');
   });
 });
-

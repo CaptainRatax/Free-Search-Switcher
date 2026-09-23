@@ -1,7 +1,5 @@
 const MAX_NAME_LENGTH = 80;
 const MAX_URL_LENGTH = 2_048;
-const MAX_ICON_DATA_URL_LENGTH = 700_000;
-const SAFE_ICON_DATA_URL = /^data:image\/(?:png|jpeg|webp|x-icon|vnd\.microsoft\.icon);base64,[a-z0-9+/=\r\n]+$/i;
 
 function validateHttpsUrl(value, fieldName) {
   if (!value) {
@@ -28,18 +26,17 @@ function validateHttpsUrl(value, fieldName) {
   return null;
 }
 
-export function isSafeIconDataUrl(value) {
-  return typeof value === 'string'
-    && value.length <= MAX_ICON_DATA_URL_LENGTH
-    && SAFE_ICON_DATA_URL.test(value);
+export function isSafeIconUrl(value) {
+  return typeof value === 'string' && !validateHttpsUrl(value, 'Icon URL');
 }
 
-export function validateCustomEngine(input) {
+export function validateCustomEngine(input = {}) {
+  input = input && typeof input === 'object' ? input : {};
   const value = {
-    name: String(input.name ?? '').trim(),
-    homeUrl: String(input.homeUrl ?? '').trim(),
-    searchUrlTemplate: String(input.searchUrlTemplate ?? '').trim(),
-    iconDataUrl: input.iconDataUrl || null,
+    name: typeof input.name === 'string' ? input.name.trim() : '',
+    homeUrl: typeof input.homeUrl === 'string' ? input.homeUrl.trim() : '',
+    searchUrlTemplate: typeof input.searchUrlTemplate === 'string' ? input.searchUrlTemplate.trim() : '',
+    iconUrl: typeof input.iconUrl === 'string' ? input.iconUrl.trim() || null : null,
   };
   const errors = {};
 
@@ -81,8 +78,11 @@ export function validateCustomEngine(input) {
     }
   }
 
-  if (value.iconDataUrl && !isSafeIconDataUrl(value.iconDataUrl)) {
-    errors.iconDataUrl = 'The custom icon must be a locally processed PNG, JPEG, WebP, or ICO image.';
+  if (value.iconUrl) {
+    const iconUrlError = validateHttpsUrl(value.iconUrl, 'Icon URL');
+    if (iconUrlError) errors.iconUrl = iconUrlError;
+  } else if (input.iconUrl != null && typeof input.iconUrl !== 'string') {
+    errors.iconUrl = 'Icon URL must be a valid HTTPS URL or empty.';
   }
 
   return {

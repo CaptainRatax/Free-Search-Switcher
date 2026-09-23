@@ -16,7 +16,7 @@ The following order is fixed. Selecting preferred engines promotes those destina
 | 6 | Brave | [search.brave.com](https://search.brave.com/) | `https://search.brave.com/search?q={query}` | URL parameter `q` |
 | 7 | Google | [www.google.com](https://www.google.com/) | `https://www.google.com/search?q={query}` | URL parameter `q`; decoded `/maps/search/…` path for Google Maps |
 
-The extension runs only on these exact HTTPS hostnames. Regional domains and alternate subdomains are outside this list: for example, `www.google.co.uk`, `google.com`, and `html.duckduckgo.com` do not receive the controls. Adding one as a custom destination does not expand website access.
+The extension runs only on these exact HTTPS hostnames when global and current-site injection are enabled at page load. Site switches never remove destinations or preferred choices. Regional domains and alternate subdomains are outside this list: for example, `www.google.co.uk`, `google.com`, and `html.duckduckgo.com` do not receive the controls. Adding one as a custom destination does not expand website access.
 
 The controls need a visible search bar recognized by the provider's adapter. Consent pages, verification challenges, and special layouts can lack that bar. The extension explicitly hides controls over recognized Ecosia consent notices and Qwant verification challenges.
 
@@ -71,21 +71,22 @@ A custom engine is a saved navigation destination. It has one homepage and one s
 
 ### Add a destination
 
-1. Open [settings](/configuration/settings.md) using the toolbar icon.
+1. Open [Settings](/configuration/settings.md) from the desktop popup, or the extension action on Android.
 2. In **Custom search engines**, click **Add custom engine**.
 3. Enter a **Display name**, **Home URL**, and **Search URL template**.
-4. Optionally click **Choose image** and select a local icon.
-5. Click **Save custom engine**. Correct any highlighted fields if validation fails.
+4. Optionally enter an HTTPS **Icon URL**, such as `https://example.com/icon.png`.
+5. Click **Apply to draft** to add it to the Settings draft. Correct highlighted fields if validation fails.
+6. Click the page-level **Save changes** to persist the complete draft.
 
-The screenshot shows the real editor filled with a Wikipedia destination:
+The version 2 editor below contains a Wikipedia destination. **Icon URL** is optional, **Apply to draft** keeps the edit on this page, and the page-level **Save changes** persists it:
 
-![The actual custom-engine editor with Wikipedia as the display name, its HTTPS homepage, and a search template containing the literal query placeholder](../assets/screenshots/custom-engine-editor.png)
+![Free Search Switcher 2.0.0 custom-engine editor with Wikipedia, its HTTPS homepage and search template, optional Icon URL, Apply to draft, and page-level Save changes and Cancel](../assets/screenshots/custom-engine-editor.png)
 
 The values in this example are:
 
 ```text
 Display name: Wikipedia
-Home URL: https://en.wikipedia.org/
+Home URL: https://en.wikipedia.org/wiki/Main_Page
 Search URL template: https://en.wikipedia.org/w/index.php?search={query}
 ```
 
@@ -112,15 +113,17 @@ Validation checks the format, not whether the target service is online or return
 
 ### Icons
 
-Custom icons are optional. Choose a local PNG, JPEG, WebP, or ICO of no more than 2 MB. The browser decodes the image, preserves its aspect ratio, and centers it in a transparent 128 × 128 PNG. That processed image is saved locally with the engine; the original file is not uploaded.
+Custom icons use an optional **Icon URL** containing a syntactically valid HTTPS URL. Only that string is saved and synchronized; no image bytes are stored. Validation does not download the image, and Free Search Switcher does not accept file uploads or operate an image proxy.
 
-There is no remote icon URL field or automatic favicon download. Without an icon, the engine's first letter is shown. An undecodable file or unsupported MIME type produces a message; choose another supported image or save without an icon.
+When an icon is displayed, the browser may request it from that external host. Review the host's privacy practices before using it. There is no automatic favicon-discovery service. Empty or failed images fall back to the engine's first letter without breaking navigation. Clear the field to remove an icon, choose **Apply to draft**, then use **Save changes**.
+
+Upgrading from version 1 keeps custom engines and their order but drops legacy uploaded icons. They use the letter fallback until an HTTPS icon URL is added.
 
 ### Edit, delete, and ordering
 
-Click **Edit** beside a saved engine, change its fields, and click **Save custom engine**. Its saved identity and creation order remain unchanged, so preferred selections still refer to the edited entry.
+Click **Edit**, change its fields, and click **Apply to draft**. Its identity and creation order remain unchanged, so preferred selections still refer to it. Click page-level **Save changes** to persist the update.
 
-Click **Delete** and confirm to remove it. If it was your first preference, both preferences are cleared. If it was your second, only the second is cleared. Deleted entries cannot be restored through an undo command.
+Click **Delete** to remove it from the draft. If it was your first preference, both preferences are cleared; if it was your second, only that slot is cleared. Page-level **Cancel** restores all unsaved deletions, edits, icon URLs, and preferences. **Save changes** persists them together.
 
 Custom engines are listed in creation order after built-ins unless promoted by a preference. There is no manual reorder control.
 
@@ -130,4 +133,4 @@ Adding a custom entry does not create an adapter for its website. Controls are i
 
 Custom engines always receive their configured template, with no automatic Images, Videos, News, Maps, or Shopping mapping. You may configure a site's particular mode URL as the single template, but that same template is then used regardless of the source mode.
 
-Preferences and custom definitions stay in this browser profile. Read [privacy and data handling](/privacy/privacy.md) before adding a target whose privacy practices you have not reviewed.
+Saved preferences and custom definitions use browser-native configuration sync where supported. Firefox and Chromium remain separate, and Firefox Android does not synchronize extension settings with Desktop Firefox. Unsaved drafts are never synchronized. Read [privacy and data handling](/privacy/privacy.md) before adding a target whose privacy practices you have not reviewed.

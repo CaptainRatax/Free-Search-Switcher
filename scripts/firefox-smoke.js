@@ -6,10 +6,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const { version } = JSON.parse(await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'));
 const firefoxPath = process.env.FSS_FIREFOX_PATH;
 const geckodriverPath = process.env.FSS_GECKODRIVER_PATH;
 const extensionArchive = process.env.FSS_FIREFOX_EXTENSION
-  || path.join(repositoryRoot, '.output', 'free-search-switcher-1.0.0-firefox.zip');
+  || path.join(repositoryRoot, '.output', `free-search-switcher-${version}-firefox.zip`);
 const complexQuery = 'privacidade café & "pesquisa livre" 世界';
 const storageKey = 'freeSearchSwitcherSettings';
 const emulateMobile = process.env.FSS_FIREFOX_MOBILE === '1';
@@ -150,9 +151,11 @@ try {
   await webdriver('POST', `${route}/execute/async`, {
     script: `
       const done = arguments[arguments.length - 1];
-      globalThis.browser.storage.local.set({
+      globalThis.browser.storage.sync.set({
         '${storageKey}': {
-          schemaVersion: 1,
+          schemaVersion: 2,
+          enabled: true,
+          siteEnabled: { ecosia: true, startpage: true, duckduckgo: true, qwant: true, bing: true, brave: true, google: true },
           firstPreferredEngineId: '${preferredEngineId}',
           secondPreferredEngineId: null,
           customEngines: []
